@@ -32,6 +32,15 @@ export interface TriageTicketJSON {
   location_clues: string | null;
   visual_verification_note: string;
   exaggeration_or_mismatch: boolean;
+  requires_police_escalation?: boolean;
+}
+
+export interface RepairVerificationRecord {
+  verifiedAt: string;
+  afterImageUrl: string;
+  isResolved: boolean;
+  verificationNote: string;
+  emailStatus?: EmailAlertStatus;
 }
 
 export interface StoredTicket {
@@ -44,6 +53,10 @@ export interface StoredTicket {
   citizenDescription: string;
   localBodyHint: string;
   triage: TriageTicketJSON;
+  corroborationCount?: number;
+  lastCorroboratedAt?: string;
+  wasCorroborationBoosted?: boolean;
+  repairVerification?: RepairVerificationRecord;
 }
 
 export interface TicketFilters {
@@ -321,6 +334,10 @@ export function normalizeTriagePayload(raw: unknown): TriageTicketJSON {
       'Visual evidence aligns with the submitted civic issue report.'
     ),
     exaggeration_or_mismatch: Boolean(record.exaggeration_or_mismatch),
+    ...(record.requires_police_escalation === true ||
+    department === 'Public Safety & Encroachment'
+      ? { requires_police_escalation: true }
+      : {}),
   };
 }
 
@@ -404,5 +421,205 @@ export function computeQueueMetrics(tickets: StoredTicket[]): QueueMetrics {
     pendingDispatch,
     spamRejected,
     byDepartment,
+  };
+}
+
+const DUPLICATE_STOP_WORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'with',
+  'near',
+  'from',
+  'that',
+  'this',
+  'road',
+  'ward',
+  'issue',
+  'please',
+  'urgent',
+  'municipality',
+  'corporation',
+  'panchayat',
+  'kerala',
+  'public',
+  'main',
+  'street',
+  'area',
+  'spot',
+]);
+
+function extractMatchTokens(parts: Array<string | null | undefined>): Set<string> {
+  const tokens = new Set<string>();
+  for (const raw of parts) {
+    if (!raw) continue;
+    const cleaned = raw
+      .toLowerCase()
+      .replace(/[^a-z0-9\u0d00-\u0d7f\s]/g, ' ')
+      .split(/\s+/);
+    for (const token of cleaned) {
+      if (token.length >= 3 && !DUPLICATE_STOP_WORDS.has(token)) {
+        tokens.add(token);
+      }
+    }
+  }
+  return tokens;
+}
+
+/**
+ * Finds an existing open, valid civic ticket in the same department with overlapping
+ * landmarks or location/defect keywords so repeat citizen reports boost priority
+ * instead of cluttering the municipal queue.
+ */
+export function findDuplicateTicketMatch(
+  existingTickets: StoredTicket[],
+  incoming: TriageTicketJSON,
+  incomingLocationHint = '',
+  incomingDescription = ''
+): StoredTicket | null {
+  if (!incoming.is_valid_civic_issue) return null;
+
+  const incomingLandmarks = new Set(
+    (incoming.extracted_landmarks ?? [])
+      .map((l) => l.trim().toLowerCase())
+      .filter((l) => l.length >= 3)
+  );
+  const incomingTokens = extractMatchTokens([
+    ...(incoming.extracted_landmarks ?? []),
+    incoming.location_clues,
+    incomingLocationHint,
+    incoming.ticket_title,
+    incoming.issue_category,
+    incomingDescription,
+  ]);
+
+  if (incomingLandmarks.size === 0 && incomingTokens.size === 0) return null;
+
+  let bestMatch: StoredTicket | null = null;
+  let bestScore = 0;
+
+  for (const ticket of existingTickets) {
+    if (
+      !ticket.triage.is_valid_civic_issue ||
+      ticket.workflowStatus === 'Resolved' ||
+      ticket.workflowStatus === 'Rejected'
+    ) {
+      continue;
+    }
+    if (ticket.triage.department !== incoming.department) {
+      continue;
+    }
+
+    let score = 0;
+
+    // Direct landmark phrase overlap (strongest signal)
+    for (const lm of ticket.triage.extracted_landmarks ?? []) {
+      const normalized = lm.trim().toLowerCase();
+      if (!normalized) continue;
+      for (const incLm of incomingLandmarks) {
+        if (
+          normalized === incLm ||
+          (normalized.length >= 4 && incLm.includes(normalized)) ||
+          (incLm.length >= 4 && normalized.includes(incLm))
+        ) {
+          score += 3;
+        }
+      }
+    }
+
+    // Token overlap across landmarks, location clues, title, and category
+    const existingTokens = extractMatchTokens([
+      ...(ticket.triage.extracted_landmarks ?? []),
+      ticket.triage.location_clues,
+      ticket.localBodyHint,
+      ticket.triage.ticket_title,
+      ticket.triage.issue_category,
+    ]);
+
+    let tokenOverlap = 0;
+    for (const token of incomingTokens) {
+      if (existingTokens.has(token)) {
+        tokenOverlap += 1;
+      }
+    }
+    score += tokenOverlap;
+
+    if (score >= 2 && score > bestScore) {
+      bestScore = score;
+      bestMatch = ticket;
+    }
+  }
+
+  return bestMatch;
+}
+
+/**
+ * Increments citizen corroboration count and bumps severity by +1 (capped at 10),
+ * recalculating severity band and SLA accordingly.
+ */
+export function applyTicketCorroboration(
+  ticket: StoredTicket,
+  timestampIso: string = new Date().toISOString()
+): StoredTicket {
+  const nextCount = (ticket.corroborationCount ?? 1) + 1;
+  const nextSeverity = Math.min(10, Math.max(1, ticket.triage.severity_score + 1));
+  const nextBand = getSeverityBand(nextSeverity, true);
+
+  return {
+    ...ticket,
+    corroborationCount: nextCount,
+    lastCorroboratedAt: timestampIso,
+    wasCorroborationBoosted: true,
+    triage: {
+      ...ticket.triage,
+      severity_score: nextSeverity,
+      severity_level: nextBand,
+      recommended_sla: getRecommendedSla(nextBand),
+    },
+  };
+}
+
+export interface DashboardAnalyticsSummary {
+  totalActiveHazards: number;
+  totalValidTickets: number;
+  criticalSlaAlerts: number;
+  resolvedCount: number;
+  resolutionRatePercent: number;
+}
+
+export function computeDashboardAnalytics(
+  tickets: StoredTicket[]
+): DashboardAnalyticsSummary {
+  let totalValidTickets = 0;
+  let totalActiveHazards = 0;
+  let criticalSlaAlerts = 0;
+  let resolvedCount = 0;
+
+  for (const t of tickets) {
+    if (!t.triage.is_valid_civic_issue || t.workflowStatus === 'Rejected') {
+      continue;
+    }
+    totalValidTickets += 1;
+    if (t.workflowStatus === 'Resolved') {
+      resolvedCount += 1;
+    } else {
+      totalActiveHazards += 1;
+      if (t.triage.severity_score >= 7) {
+        criticalSlaAlerts += 1;
+      }
+    }
+  }
+
+  const resolutionRatePercent =
+    totalValidTickets > 0
+      ? Math.round((resolvedCount / totalValidTickets) * 100)
+      : 0;
+
+  return {
+    totalActiveHazards,
+    totalValidTickets,
+    criticalSlaAlerts,
+    resolvedCount,
+    resolutionRatePercent,
   };
 }

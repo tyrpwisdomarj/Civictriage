@@ -1,6 +1,7 @@
 import {
   DEPARTMENT_POLICIES,
   SEVERITY_RUBRIC,
+  type SeverityBand,
 } from '../shared/triageSchema';
 
 const EXAMPLE_SCHEMA_JSON = `{
@@ -20,12 +21,27 @@ const EXAMPLE_SCHEMA_JSON = `{
   "exaggeration_or_mismatch": false
 }`;
 
+function getBandPill(band: SeverityBand): string {
+  switch (band) {
+    case 'Critical':
+      return 'bg-rose-50 text-rose-700 border-rose-200';
+    case 'High':
+      return 'bg-amber-50 text-amber-800 border-amber-200';
+    case 'Medium':
+      return 'bg-sky-50 text-sky-700 border-sky-200';
+    case 'Low':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    default:
+      return 'bg-slate-100 text-slate-600 border-slate-200';
+  }
+}
+
 export function RoutingPolicyView() {
   return (
     <div className="space-y-6">
-      <section className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-200">
-        <div className="p-5 sm:p-6">
-          <h1 className="text-lg font-semibold text-slate-900 tracking-tight">
+      <section className="bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-lg shadow-sky-900/[0.04] rounded-2xl overflow-hidden divide-y divide-slate-200/75">
+        <div className="p-5 sm:p-6 bg-gradient-to-r from-amber-50/80 via-white to-sky-50/70">
+          <h1 className="text-lg font-bold text-slate-900 tracking-tight">
             Municipal Triage Rules &amp; Routing Policy
           </h1>
           <p className="mt-1 text-sm text-slate-600 leading-relaxed max-w-3xl">
@@ -36,16 +52,16 @@ export function RoutingPolicyView() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-600">
+              <tr className="border-b border-slate-200/80 bg-sky-50/50 text-xs font-bold text-slate-600">
                 <th scope="col" className="py-3 pl-6 pr-3 whitespace-nowrap">Department</th>
                 <th scope="col" className="py-3 px-3">Jurisdiction Scope</th>
                 <th scope="col" className="py-3 pl-3 pr-6">Mapped Field Issues</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 text-sm">
+            <tbody className="divide-y divide-slate-200/70 text-sm">
               {DEPARTMENT_POLICIES.map((policy) => (
-                <tr key={policy.department}>
-                  <td className="py-3.5 pl-6 pr-3 font-medium text-slate-900 whitespace-nowrap align-top">
+                <tr key={policy.department} className="hover:bg-sky-50/40 transition-colors">
+                  <td className="py-3.5 pl-6 pr-3 font-semibold text-slate-900 whitespace-nowrap align-top">
                     {policy.department}
                   </td>
                   <td className="py-3.5 px-3 text-xs text-slate-600 leading-relaxed align-top max-w-sm">
@@ -62,9 +78,9 @@ export function RoutingPolicyView() {
       </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        <section className="xl:col-span-7 bg-white border border-slate-200 rounded-lg divide-y divide-slate-200">
-          <div className="p-5 sm:p-6">
-            <h2 className="text-base font-semibold text-slate-900">
+        <section className="xl:col-span-7 bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-lg shadow-sky-900/[0.04] rounded-2xl overflow-hidden divide-y divide-slate-200/75">
+          <div className="p-5 sm:p-6 bg-gradient-to-r from-emerald-50/70 via-white to-amber-50/60">
+            <h2 className="text-base font-bold text-slate-900">
               Severity Scoring Matrix (0–10)
             </h2>
             <p className="mt-1 text-xs text-slate-600">
@@ -74,24 +90,30 @@ export function RoutingPolicyView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-600">
+                <tr className="border-b border-slate-200/80 bg-sky-50/50 text-xs font-bold text-slate-600">
                   <th scope="col" className="py-3 pl-5 pr-3 whitespace-nowrap">Score</th>
                   <th scope="col" className="py-3 px-3 whitespace-nowrap">Tier &amp; SLA</th>
                   <th scope="col" className="py-3 pl-3 pr-5">Criteria &amp; Examples</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 text-xs">
+              <tbody className="divide-y divide-slate-200/70 text-xs">
                 {SEVERITY_RUBRIC.map((tier) => (
                   <tr key={tier.band}>
-                    <td className="py-3.5 pl-5 pr-3 font-mono font-semibold text-slate-900 whitespace-nowrap tabular-nums align-top">
+                    <td className="py-3.5 pl-5 pr-3 font-mono font-bold text-slate-900 whitespace-nowrap tabular-nums align-top">
                       {tier.range}
                     </td>
                     <td className="py-3.5 px-3 whitespace-nowrap align-top">
-                      <p className="font-semibold text-slate-900">{tier.band}</p>
-                      <p className="text-slate-500 mt-0.5">{tier.sla}</p>
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-md border font-bold ${getBandPill(
+                          tier.band
+                        )}`}
+                      >
+                        {tier.band}
+                      </span>
+                      <p className="text-slate-500 mt-1">{tier.sla}</p>
                     </td>
                     <td className="py-3.5 pl-3 pr-5 text-slate-700 leading-relaxed align-top">
-                      <p className="font-medium text-slate-800">{tier.criteria}</p>
+                      <p className="font-semibold text-slate-800">{tier.criteria}</p>
                       <p className="mt-0.5 text-slate-500">{tier.examples}</p>
                     </td>
                   </tr>
@@ -101,17 +123,17 @@ export function RoutingPolicyView() {
           </div>
         </section>
 
-        <section className="xl:col-span-5 bg-white border border-slate-200 rounded-lg divide-y divide-slate-200">
-          <div className="p-5 sm:p-6">
-            <h2 className="text-base font-semibold text-slate-900">
+        <section className="xl:col-span-5 bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-lg shadow-sky-900/[0.04] rounded-2xl overflow-hidden divide-y divide-slate-200/75">
+          <div className="p-5 sm:p-6 bg-gradient-to-r from-sky-50/70 via-white to-emerald-50/70">
+            <h2 className="text-base font-bold text-slate-900">
               K-SMART Strict JSON Output Contract
             </h2>
             <p className="mt-1 text-xs text-slate-600">
-              Returned directly by <code className="font-mono text-slate-800">POST /api/triage</code> without markdown fences.
+              Returned directly by <code className="font-mono text-sky-800">POST /api/triage</code> without markdown fences.
             </p>
           </div>
           <div className="p-5 sm:p-6">
-            <pre className="p-4 rounded-md bg-slate-950 text-slate-100 font-mono text-xs leading-relaxed overflow-x-auto">
+            <pre className="p-4 rounded-xl bg-slate-900 text-emerald-200 font-mono text-xs leading-relaxed overflow-x-auto">
               <code>{EXAMPLE_SCHEMA_JSON}</code>
             </pre>
           </div>
