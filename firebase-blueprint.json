@@ -1,0 +1,126 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile and smart autofill preferences for CivicTriage LSG.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID owning this profile document."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Full display name of the citizen or officer."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified account email address."
+        },
+        "homeDistrictId": {
+          "type": "string",
+          "description": "Default Kerala district identifier (e.g., pathanamthitta)."
+        },
+        "homeDistrictName": {
+          "type": "string",
+          "description": "Display name of the home district/city."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["Citizen", "LSG / Police Officer"],
+          "description": "Portal persona role."
+        },
+        "abhaHealthId": {
+          "type": "string",
+          "description": "Optional ABHA Health ID for hospital OP autofill."
+        },
+        "academicStream": {
+          "type": "string",
+          "description": "Optional academic stream for college admission and study planner autofill."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "fullName",
+        "email",
+        "homeDistrictId",
+        "homeDistrictName",
+        "role",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserVaultSection": {
+      "title": "UserVaultSection",
+      "description": "Per-user isolated civic, travel, healthcare, education, and expense vault section serialized as JSON.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID owning this vault section."
+        },
+        "sectionKey": {
+          "type": "string",
+          "enum": [
+            "tickets",
+            "policeCases",
+            "bookings",
+            "studyPlans",
+            "admissions",
+            "jobApps",
+            "hospitalBookings",
+            "weekendPlans",
+            "eventPlan",
+            "foodOrders",
+            "expenses",
+            "budgetGoal",
+            "chatHistory"
+          ],
+          "description": "Vault data slice identifier."
+        },
+        "payloadJson": {
+          "type": "string",
+          "description": "JSON-serialized records for this user vault slice."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the vault slice was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the vault slice was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "sectionKey",
+        "payloadJson",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private per-user profile document isolated strictly to the authenticated owner."
+    },
+    "/users/{userId}/vault/{sectionId}": {
+      "schema": { "$ref": "#/entities/UserVaultSection" },
+      "description": "Private per-user namespaced vault slices (tickets, bookings, OP slips, study plans, expenses, chat history)."
+    }
+  }
+}

@@ -29,6 +29,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
   'Travel Tickets': '#4F5BD5',
   'Turf & Lifestyle': '#10b981',
   'Education & Books': '#8b5cf6',
+  'Healthcare & OP': '#e11d48',
 };
 
 export const ExpenseTrackerPanel: React.FC<ExpenseTrackerPanelProps> = ({

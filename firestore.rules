@@ -1,0 +1,190 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (must match request.auth.uid)
+    // Fields:
+    //   - ownerId: string (required, immutable, == request.auth.uid)
+    //   - fullName: string (required, 1..120 chars)
+    //   - email: string (required, 3..160 chars)
+    //   - homeDistrictId: string (required, 1..60 chars)
+    //   - homeDistrictName: string (required, 1..80 chars)
+    //   - role: string (required, 'Citizen' | 'LSG / Police Officer')
+    //   - abhaHealthId: string (optional, 0..64 chars)
+    //   - academicStream: string (optional, 0..100 chars)
+    //   - createdAt: timestamp (required, immutable, == request.time on create)
+    //   - updatedAt: timestamp (required, == request.time)
+    //
+    // Collection: users/{userId}/vault
+    // Document ID: {sectionId} (sectionKey matching allowed vault slices)
+    // Fields:
+    //   - ownerId: string (required, immutable, == request.auth.uid)
+    //   - sectionKey: string (required, enum of 13 allowed vault keys)
+    //   - payloadJson: string (required, <= 450000 chars)
+    //   - createdAt: timestamp (required, immutable, == request.time on create)
+    //   - updatedAt: timestamp (required, == request.time)
+    //
+    // ===============================================================
+
+    // Default-deny catch-all rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null
+        && request.auth.uid != null
+        && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    function isValidRole(role) {
+      return role is string && (role == 'Citizen' || role == 'LSG / Police Officer');
+    }
+
+    function isValidVaultKey(key) {
+      return key is string && key in [
+        'tickets',
+        'policeCases',
+        'bookings',
+        'studyPlans',
+        'admissions',
+        'jobApps',
+        'hospitalBookings',
+        'weekendPlans',
+        'eventPlan',
+        'foodOrders',
+        'expenses',
+        'budgetGoal',
+        'chatHistory'
+      ];
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+          'ownerId',
+          'fullName',
+          'email',
+          'homeDistrictId',
+          'homeDistrictName',
+          'role',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'fullName',
+          'email',
+          'homeDistrictId',
+          'homeDistrictName',
+          'role',
+          'abhaHealthId',
+          'academicStream',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string && data.ownerId == userId
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.homeDistrictId is string && data.homeDistrictId.size() >= 1 && data.homeDistrictId.size() <= 60
+        && data.homeDistrictName is string && data.homeDistrictName.size() >= 1 && data.homeDistrictName.size() <= 80
+        && isValidRole(data.role)
+        && (!('abhaHealthId' in data) || (data.abhaHealthId is string && data.abhaHealthId.size() <= 64))
+        && (!('academicStream' in data) || (data.academicStream is string && data.academicStream.size() <= 100))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVaultSection(data, userId, sectionId) {
+      return data.keys().hasAll([
+          'ownerId',
+          'sectionKey',
+          'payloadJson',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'sectionKey',
+          'payloadJson',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string && data.ownerId == userId
+        && isValidVaultKey(data.sectionKey) && data.sectionKey == sectionId
+        && data.payloadJson is string && data.payloadJson.size() <= 450000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(request.resource.data, userId)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(request.resource.data, userId)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'fullName',
+          'email',
+          'homeDistrictId',
+          'homeDistrictName',
+          'role',
+          'abhaHealthId',
+          'academicStream',
+          'updatedAt'
+        ]);
+
+      allow delete: if isValidId(userId) && isOwner(userId);
+
+      match /vault/{sectionId} {
+        allow get: if isValidId(userId) && isValidId(sectionId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId);
+
+        allow create: if isValidId(userId)
+          && isValidId(sectionId)
+          && isOwner(userId)
+          && isValidVaultSection(request.resource.data, userId, sectionId)
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+
+        allow update: if isValidId(userId)
+          && isValidId(sectionId)
+          && isOwner(userId)
+          && isValidVaultSection(request.resource.data, userId, sectionId)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.sectionKey == resource.data.sectionKey
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'payloadJson',
+            'updatedAt'
+          ]);
+
+        allow delete: if isValidId(userId) && isValidId(sectionId) && isOwner(userId);
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 export type LocalLifeTab =
   | 'education'
   | 'jobs'
+  | 'healthcare'
   | 'lifestyle'
   | 'weekend'
   | 'events'
@@ -797,7 +798,8 @@ export type ExpenseCategory =
   | 'Local Transport & Fuel'
   | 'Travel Tickets'
   | 'Turf & Lifestyle'
-  | 'Education & Books';
+  | 'Education & Books'
+  | 'Healthcare & OP';
 
 export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   'Food & Cafes',
@@ -805,6 +807,7 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   'Travel Tickets',
   'Turf & Lifestyle',
   'Education & Books',
+  'Healthcare & OP',
 ];
 
 export interface ExpenseEntry {
@@ -813,7 +816,7 @@ export interface ExpenseEntry {
   category: ExpenseCategory;
   amountInr: number;
   date: string;
-  source: 'Manual' | 'Auto-Booked' | 'Weekend Plan' | 'Event Order';
+  source: 'Manual' | 'Auto-Booked' | 'Weekend Plan' | 'Event Order' | 'Hospital Booking';
   note?: string;
 }
 

@@ -186,6 +186,11 @@ export interface AssistantFoodOrderSummary {
 
 export interface AssistantSessionContext {
   activeTab: string;
+  userName?: string;
+  userEmail?: string;
+  userRole?: string;
+  userHomeDistrict?: string;
+  userAcademicStream?: string;
   travelOriginName: string;
   travelDestinationName: string | null;
   localLifeDistrict?: string;
@@ -243,9 +248,19 @@ export function buildSessionContextBlock(
   const localSection = clampText(ctx.localLifeSection, 30) || 'Education';
   const weekendHeadline = clampText(ctx.weekendPlanHeadline, 120);
   const eventHeadline = clampText(ctx.activeEventHeadline, 120);
+  const userName = clampText(ctx.userName, 80);
+  const userRole = clampText(ctx.userRole, 40);
+  const userHomeDistrict = clampText(ctx.userHomeDistrict, 60);
 
   const lines: string[] = [
     'LIVE SESSION CONTEXT (read-only snapshot of this user session):',
+    ...(userName
+      ? [
+          `- Signed-in User: ${userName}${userRole ? ` (${userRole})` : ''}${
+            userHomeDistrict ? ` · Home District: ${userHomeDistrict}` : ''
+          }`,
+        ]
+      : []),
     `- Current Page: ${activeTab}`,
     `- 3D Travel Explorer Route Selection: Origin = ${originName}, Destination = ${destName || 'Not yet selected'}`,
     `- Local Life Hub Focus: District = ${localDistrict}, Section = ${localSection}`,

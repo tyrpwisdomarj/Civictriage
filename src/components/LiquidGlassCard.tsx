@@ -135,7 +135,7 @@ export function LiquidSegmentedTabs<T extends string>({
                 transition={IOS_SPRING}
                 className={
                   isPeriwinkle
-                    ? 'absolute inset-0 rounded-full bg-[#4F5BD5]/18 dark:bg-[#7B83EB]/30 border border-[#4F5BD5]/40 dark:border-[#A5B4FC]/45 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.75),0_6px_18px_rgba(79,91,213,0.18)]'
+                    ? 'absolute inset-0 rounded-full bg-[#4F5BD5]/18 dark:bg-[#8E96FF]/28 border border-[#4F5BD5]/40 dark:border-[#8E96FF]/55 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.75),0_6px_18px_rgba(79,91,213,0.18)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.28),0_0_20px_rgba(142,150,255,0.28)]'
                     : 'absolute inset-0 rounded-full bg-[#111315] dark:bg-white shadow-md'
                 }
               />

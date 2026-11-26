@@ -34,6 +34,8 @@ import { VoiceMicControl } from './VoiceMicControl';
 interface AssistantChatbotWidgetProps {
   sessionContext: AssistantSessionContext;
   onNavigateAction: (action: AssistantActionId) => void;
+  persistedMessages?: AssistantChatMessage[] | null;
+  onMessagesChange?: (messages: AssistantChatMessage[]) => void;
 }
 
 function formatClockTime(date: Date = new Date()): string {
@@ -43,11 +45,13 @@ function formatClockTime(date: Date = new Date()): string {
   });
 }
 
-function createWelcomeMessage(): AssistantChatMessage {
+function createWelcomeMessage(userName?: string): AssistantChatMessage {
+  const firstName = userName ? userName.split(/\s+/)[0] : '';
+  const greeting = firstName && firstName !== 'Demo' ? `Namaskaram ${firstName}!` : 'Namaskaram!';
   return {
     id: `welcome-${Date.now()}`,
     role: 'model',
-    text: 'Namaskaram! I am your CivicTriage LSG & Local Life AI. Type /jobs, /weekend, /event, or /ksmart — or ask in English, Malayalam, or Manglish about Kerala jobs, weekend plans, event food delivery, civic reports, or 3D travel bookings.',
+    text: `${greeting} I am your CivicTriage LSG & Local Life AI. Type /jobs, /weekend, /event, or /ksmart — or ask in English, Malayalam, or Manglish about Kerala jobs, weekend plans, event food delivery, civic reports, or 3D travel bookings.`,
     timestamp: formatClockTime(),
     actions: ['jobs_portal', 'weekend_planner', 'event_ai'],
   };
@@ -105,14 +109,41 @@ function FormattedReplyText({ text }: { text: string }) {
 export function AssistantChatbotWidget({
   sessionContext,
   onNavigateAction,
+  persistedMessages = null,
+  onMessagesChange,
 }: AssistantChatbotWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<AssistantChatMessage[]>(() => [
-    createWelcomeMessage(),
-  ]);
+  const [internalMessages, setInternalMessages] = useState<AssistantChatMessage[]>(() =>
+    persistedMessages && persistedMessages.length > 0
+      ? persistedMessages
+      : [createWelcomeMessage(sessionContext.userName)]
+  );
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
+
+  const messages =
+    persistedMessages && persistedMessages.length > 0
+      ? persistedMessages
+      : internalMessages;
+
+  const updateMessages = (
+    updater:
+      | AssistantChatMessage[]
+      | ((prev: AssistantChatMessage[]) => AssistantChatMessage[])
+  ) => {
+    const next = typeof updater === 'function' ? updater(messages) : updater;
+    setInternalMessages(next);
+    onMessagesChange?.(next);
+  };
+
+  useEffect(() => {
+    if (persistedMessages && persistedMessages.length > 0) {
+      setInternalMessages(persistedMessages);
+    } else if (persistedMessages && persistedMessages.length === 0) {
+      setInternalMessages([createWelcomeMessage(sessionContext.userName)]);
+    }
+  }, [persistedMessages, sessionContext.userName]);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -159,7 +190,7 @@ export function AssistantChatbotWidget({
     };
 
     const nextHistory = [...messages.filter((m) => !m.isError), userMsg];
-    setMessages((prev) => [...prev.filter((m) => !m.isError), userMsg]);
+    updateMessages(nextHistory);
     setInputValue('');
     setIsLoading(true);
     setLastFailedPrompt(null);
@@ -200,7 +231,7 @@ export function AssistantChatbotWidget({
         timestamp: formatClockTime(),
         actions: normalized.actions,
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      updateMessages([...nextHistory, assistantMsg]);
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') return;
       const errText =
@@ -208,8 +239,8 @@ export function AssistantChatbotWidget({
           ? err.message
           : 'Unable to reach CivicTriage Assistant right now.';
       setLastFailedPrompt(text);
-      setMessages((prev) => [
-        ...prev,
+      updateMessages([
+        ...nextHistory,
         {
           id: `err-${Date.now()}`,
           role: 'model',
@@ -229,7 +260,7 @@ export function AssistantChatbotWidget({
     abortRef.current?.abort();
     setIsLoading(false);
     setLastFailedPrompt(null);
-    setMessages([createWelcomeMessage()]);
+    updateMessages([createWelcomeMessage(sessionContext.userName)]);
   };
 
   const handleActionClick = (action: AssistantActionId) => {

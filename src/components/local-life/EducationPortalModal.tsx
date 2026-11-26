@@ -21,12 +21,14 @@ import {
 } from '../../data/localLifeData';
 import { fetchSpotGallery, type SpotPhotoItem } from '../../utils/spotGallery';
 import { readAiCache, writeAiCache } from '../../utils/aiResponseCache';
+import type { UserProfile } from '../../shared/authSchema';
 
 interface EducationPortalModalProps {
   institution: EducationEntry | null;
   onClose: () => void;
   onSubmitApplication: (record: AdmissionApplicationRecord) => void;
   onOpenPictureLibrary?: (item: EducationEntry) => void;
+  activeUser?: UserProfile;
 }
 
 const DEFAULT_STUDENT_PROFILE = {
@@ -43,6 +45,7 @@ export const EducationPortalModal: React.FC<EducationPortalModalProps> = ({
   onClose,
   onSubmitApplication,
   onOpenPictureLibrary,
+  activeUser,
 }) => {
   const [photos, setPhotos] = useState<SpotPhotoItem[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
@@ -70,11 +73,11 @@ export const EducationPortalModal: React.FC<EducationPortalModalProps> = ({
     let cancelled = false;
     setShowApplyForm(false);
     setSubmittedRecord(null);
-    setApplicantName('');
-    setEmail('');
+    setApplicantName(activeUser?.fullName || '');
+    setEmail(activeUser?.email || '');
     setPhone('');
-    setStream(institution.stream);
-    setDistrictState(`${institution.districtName}, Kerala`);
+    setStream(activeUser?.academicStream || institution.stream);
+    setDistrictState(activeUser?.homeDistrictName || `${institution.districtName}, Kerala`);
     setQualification('');
     setSopText('');
     setLoadingPhotos(true);
@@ -90,23 +93,28 @@ export const EducationPortalModal: React.FC<EducationPortalModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [institution]);
+  }, [institution, activeUser]);
 
   const handleAutofillProfileAndSop = async () => {
     if (!institution) return;
-    setShowApplyForm(true);
-    setApplicantName(DEFAULT_STUDENT_PROFILE.applicantName);
-    setEmail(DEFAULT_STUDENT_PROFILE.email);
-    setPhone(DEFAULT_STUDENT_PROFILE.phone);
-    setStream(
+    const resolvedName = activeUser?.fullName || DEFAULT_STUDENT_PROFILE.applicantName;
+    const resolvedEmail = activeUser?.email || DEFAULT_STUDENT_PROFILE.email;
+    const resolvedDistrict =
+      activeUser?.homeDistrictName || DEFAULT_STUDENT_PROFILE.districtState;
+    const resolvedStream =
       institution.stream === 'Skill Dev'
         ? 'Full-Stack Web & Applied AI Track'
-        : DEFAULT_STUDENT_PROFILE.stream
-    );
-    setDistrictState(DEFAULT_STUDENT_PROFILE.districtState);
+        : activeUser?.academicStream || DEFAULT_STUDENT_PROFILE.stream;
+
+    setShowApplyForm(true);
+    setApplicantName(resolvedName);
+    setEmail(resolvedEmail);
+    setPhone(DEFAULT_STUDENT_PROFILE.phone);
+    setStream(resolvedStream);
+    setDistrictState(resolvedDistrict);
     setQualification(DEFAULT_STUDENT_PROFILE.qualification);
 
-    const cacheKey = `sop::${institution.id}::${DEFAULT_STUDENT_PROFILE.applicantName}`;
+    const cacheKey = `sop::${institution.id}::${resolvedName}`;
     const cached = readAiCache<{ sopText: string; documentsChecklist: string[] }>(cacheKey);
     if (cached) {
       setSopText(cached.sopText);
@@ -123,8 +131,8 @@ export const EducationPortalModal: React.FC<EducationPortalModalProps> = ({
           mode: 'sop',
           districtName: institution.districtName,
           institutionName: institution.name,
-          applicantName: DEFAULT_STUDENT_PROFILE.applicantName,
-          stream: institution.stream,
+          applicantName: resolvedName,
+          stream: resolvedStream,
         }),
       });
       const data = (await resp.json().catch(() => null)) as {

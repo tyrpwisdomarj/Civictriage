@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -2176,6 +2177,86 @@ async function startServer() {
       };
     }
 
+    if (mode === 'healthcare_search') {
+      const target = String(body.query || districtName || 'Pathanamthitta').trim();
+      const slug = target.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      return {
+        summary: `Discovered key Government & Private NABH hospitals and active OP specialists in ${target}.`,
+        hospitals: [
+          {
+            id: `ai-hosp-${slug}-gov`,
+            name: `District General Hospital, ${target}`,
+            ownership: 'Govt',
+            isGovernment: true,
+            districtId: slug,
+            districtName: target,
+            address: `Hospital Junction, Civil Station Road, ${target}`,
+            phone: '0484-2361251',
+            emergency24x7: true,
+            bloodBank: true,
+            nabhAccredited: false,
+            departments: ['General Medicine', 'Orthopedics', 'Pediatrics', 'Cardiology', 'Emergency'],
+            opFeeLabel: '₹0 Govt OP (Free e-Health)',
+            defaultOpFeeInr: 0,
+            wikiQuery: target,
+            googleMapsQuery: `General Hospital ${target}`,
+          },
+          {
+            id: `ai-hosp-${slug}-pvt`,
+            name: `${target} Multi-Specialty Medical Centre (NABH)`,
+            ownership: 'Private NABH',
+            isGovernment: false,
+            districtId: slug,
+            districtName: target,
+            address: `Bypass Road, Medical Corridor, ${target}`,
+            phone: '0484-2804400',
+            emergency24x7: true,
+            bloodBank: true,
+            nabhAccredited: true,
+            departments: ['Cardiology', 'Neurology', 'Orthopedics', 'ENT', 'Dermatology', 'Pediatrics'],
+            opFeeLabel: '₹450 – ₹550 Private OP',
+            defaultOpFeeInr: 450,
+            wikiQuery: `${target} city`,
+            googleMapsQuery: `Multi Specialty Hospital ${target}`,
+          },
+        ],
+        doctors: [
+          {
+            id: `ai-doc-${slug}-1`,
+            name: `Dr. Vineeth Krishnan`,
+            qualifications: 'MBBS, MD (General Medicine)',
+            specialty: 'General Medicine',
+            hospitalId: `ai-hosp-${slug}-gov`,
+            hospitalName: `District General Hospital, ${target}`,
+            districtId: slug,
+            districtName: target,
+            isGovernment: true,
+            timings: 'Mon–Sat · 09:00 AM – 01:30 PM',
+            availableToday: true,
+            consultationFeeInr: 0,
+            experienceYears: 15,
+            languages: 'English, Malayalam, Hindi',
+          },
+          {
+            id: `ai-doc-${slug}-2`,
+            name: `Dr. Meenakshi Nair`,
+            qualifications: 'MBBS, MD, DM (Cardiology)',
+            specialty: 'Cardiology',
+            hospitalId: `ai-hosp-${slug}-pvt`,
+            hospitalName: `${target} Multi-Specialty Medical Centre (NABH)`,
+            districtId: slug,
+            districtName: target,
+            isGovernment: false,
+            timings: 'Mon–Sat · 09:30 AM – 01:00 PM · 04:30 PM – 06:30 PM',
+            availableToday: true,
+            consultationFeeInr: 500,
+            experienceYears: 18,
+            languages: 'English, Malayalam, Hindi',
+          },
+        ],
+      };
+    }
+
     if (mode === 'food_spots') {
       return {
         headline: `Top Curated Food Spots in ${districtName} (${levelOrCategory})`,
@@ -2256,6 +2337,7 @@ async function startServer() {
       'jobs_match',
       'job_cover_note',
       'event_plan',
+      'healthcare_search',
     ].includes(rawMode)
       ? rawMode
       : 'education';
@@ -2495,6 +2577,62 @@ async function startServer() {
           },
           required: ['headline', 'summary', 'timeline', 'checklist', 'cateringMenu'],
         };
+      } else if (mode === 'healthcare_search') {
+        systemInstruction =
+          'You are an Indian Healthcare Directory Specialist. For the requested Indian district or city, return 3 real, well-known hospitals (mix of Government and Private NABH multi-specialty) and 3 realistic specialist doctors with accurate departments, timings, and realistic INR OP fees (₹0 for Govt, ₹350–₹600 for Private). Return strictly valid JSON.';
+        promptText = `District / City: ${query || districtName}, India\nReturn real hospitals and realistic specialist OP slots for this city/district.`;
+        responseSchema = {
+          type: Type.OBJECT,
+          properties: {
+            summary: { type: Type.STRING },
+            hospitals: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  name: { type: Type.STRING },
+                  ownership: { type: Type.STRING },
+                  isGovernment: { type: Type.BOOLEAN },
+                  districtName: { type: Type.STRING },
+                  address: { type: Type.STRING },
+                  phone: { type: Type.STRING },
+                  emergency24x7: { type: Type.BOOLEAN },
+                  bloodBank: { type: Type.BOOLEAN },
+                  nabhAccredited: { type: Type.BOOLEAN },
+                  departments: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  opFeeLabel: { type: Type.STRING },
+                  defaultOpFeeInr: { type: Type.INTEGER },
+                  wikiQuery: { type: Type.STRING },
+                  googleMapsQuery: { type: Type.STRING },
+                },
+                required: ['name', 'isGovernment', 'districtName', 'address', 'departments'],
+              },
+            },
+            doctors: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  name: { type: Type.STRING },
+                  qualifications: { type: Type.STRING },
+                  specialty: { type: Type.STRING },
+                  hospitalName: { type: Type.STRING },
+                  districtName: { type: Type.STRING },
+                  isGovernment: { type: Type.BOOLEAN },
+                  timings: { type: Type.STRING },
+                  availableToday: { type: Type.BOOLEAN },
+                  consultationFeeInr: { type: Type.INTEGER },
+                  experienceYears: { type: Type.INTEGER },
+                  languages: { type: Type.STRING },
+                },
+                required: ['name', 'qualifications', 'specialty', 'hospitalName', 'consultationFeeInr'],
+              },
+            },
+          },
+          required: ['summary', 'hospitals', 'doctors'],
+        };
       } else if (mode === 'food_spots') {
         systemInstruction =
           'You are a Kerala food scout recommending 3 authentic local restaurants, specialty cafes, toddy-shop kitchens, or late-night street food gems in the requested district. Include realistic ₹ cost for two and must-try dishes. Return strictly valid JSON.';
@@ -2553,10 +2691,216 @@ async function startServer() {
     }
   });
 
+  // =========================================================================
+  // Multi-User Email/Password Account Auth (Salted scrypt + HMAC Bearer Token)
+  // =========================================================================
+  interface ServerStoredAccount {
+    userId: string;
+    fullName: string;
+    email: string;
+    passwordSalt: string;
+    passwordHash: string;
+    homeDistrictId: string;
+    homeDistrictName: string;
+    role: 'Citizen' | 'LSG / Police Officer';
+    abhaHealthId?: string;
+    academicStream?: string;
+    createdAt: string;
+  }
+
+  const AUTH_SECRET =
+    process.env.AUTH_SESSION_SECRET && process.env.AUTH_SESSION_SECRET.length >= 16
+      ? process.env.AUTH_SESSION_SECRET
+      : crypto.randomBytes(32).toString('hex');
+
+  const serverAccountsByEmail = new Map<string, ServerStoredAccount>();
+  const serverAccountsById = new Map<string, ServerStoredAccount>();
+
+  const hashPasswordScrypt = (password: string, salt: string): string => {
+    return crypto.scryptSync(password, salt, 64).toString('hex');
+  };
+
+  const verifyPasswordScrypt = (password: string, salt: string, expectedHash: string): boolean => {
+    const derived = crypto.scryptSync(password, salt, 64);
+    const expected = Buffer.from(expectedHash, 'hex');
+    if (derived.length !== expected.length) return false;
+    return crypto.timingSafeEqual(derived, expected);
+  };
+
+  const signAuthToken = (userId: string): string => {
+    const payloadObj = {
+      uid: userId,
+      exp: Date.now() + 1000 * 60 * 60 * 24 * 7,
+    };
+    const encoded = Buffer.from(JSON.stringify(payloadObj)).toString('base64url');
+    const sig = crypto.createHmac('sha256', AUTH_SECRET).update(encoded).digest('base64url');
+    return `${encoded}.${sig}`;
+  };
+
+  const verifyAuthToken = (token: string): string | null => {
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [encoded, sig] = parts;
+    const expectedSig = crypto
+      .createHmac('sha256', AUTH_SECRET)
+      .update(encoded)
+      .digest('base64url');
+    const sigBuf = Buffer.from(sig);
+    const expBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as {
+        uid?: string;
+        exp?: number;
+      };
+      if (!parsed.uid || !parsed.exp || Date.now() > parsed.exp) return null;
+      return parsed.uid;
+    } catch {
+      return null;
+    }
+  };
+
+  const toPublicProfile = (acct: ServerStoredAccount) => ({
+    userId: acct.userId,
+    fullName: acct.fullName,
+    email: acct.email,
+    homeDistrictId: acct.homeDistrictId,
+    homeDistrictName: acct.homeDistrictName,
+    role: acct.role,
+    abhaHealthId: acct.abhaHealthId || '',
+    academicStream: acct.academicStream || '',
+    authProvider: 'password' as const,
+    createdAt: acct.createdAt,
+  });
+
+  app.post('/api/auth/register', (req, res) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const fullName = typeof body.fullName === 'string' ? body.fullName.trim().slice(0, 120) : '';
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase().slice(0, 160) : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    const homeDistrictId =
+      typeof body.homeDistrictId === 'string' && body.homeDistrictId.trim()
+        ? body.homeDistrictId.trim().slice(0, 60)
+        : 'pathanamthitta';
+    const homeDistrictName =
+      typeof body.homeDistrictName === 'string' && body.homeDistrictName.trim()
+        ? body.homeDistrictName.trim().slice(0, 80)
+        : 'Pathanamthitta, Kerala';
+    const role: 'Citizen' | 'LSG / Police Officer' =
+      body.role === 'LSG / Police Officer' ? 'LSG / Police Officer' : 'Citizen';
+    const abhaHealthId =
+      typeof body.abhaHealthId === 'string' ? body.abhaHealthId.trim().slice(0, 64) : '';
+    const academicStream =
+      typeof body.academicStream === 'string' ? body.academicStream.trim().slice(0, 100) : '';
+
+    if (fullName.length < 2) {
+      res.status(400).json({ error: 'Please enter your full name (at least 2 characters).' });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ error: 'Please enter a valid email address.' });
+      return;
+    }
+    if (password.length < 6) {
+      res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+      return;
+    }
+    if (serverAccountsByEmail.has(email)) {
+      res.status(409).json({ error: 'An account with this email already exists. Please sign in.' });
+      return;
+    }
+
+    const emailDigest = crypto.createHash('sha256').update(email).digest('hex').slice(0, 16);
+    const userId = `usr_${emailDigest}`;
+    const passwordSalt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = hashPasswordScrypt(password, passwordSalt);
+
+    const account: ServerStoredAccount = {
+      userId,
+      fullName,
+      email,
+      passwordSalt,
+      passwordHash,
+      homeDistrictId,
+      homeDistrictName,
+      role,
+      abhaHealthId,
+      academicStream,
+      createdAt: new Date().toISOString(),
+    };
+    serverAccountsByEmail.set(email, account);
+    serverAccountsById.set(userId, account);
+
+    const token = signAuthToken(userId);
+    res.status(201).json({ token, profile: toPublicProfile(account) });
+  });
+
+  app.post('/api/auth/login', (req, res) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase().slice(0, 160) : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email and password are required.' });
+      return;
+    }
+
+    const account = serverAccountsByEmail.get(email);
+    if (!account || !verifyPasswordScrypt(password, account.passwordSalt, account.passwordHash)) {
+      res.status(401).json({ error: 'Invalid email or password.' });
+      return;
+    }
+
+    const token = signAuthToken(account.userId);
+    res.status(200).json({ token, profile: toPublicProfile(account) });
+  });
+
+  app.patch('/api/auth/profile', (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const userId = token ? verifyAuthToken(token) : null;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized session. Please sign in again.' });
+      return;
+    }
+    const account = serverAccountsById.get(userId);
+    if (!account) {
+      res.status(404).json({ error: 'Account record not found.' });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    if (typeof body.fullName === 'string' && body.fullName.trim().length >= 2) {
+      account.fullName = body.fullName.trim().slice(0, 120);
+    }
+    if (typeof body.homeDistrictId === 'string' && body.homeDistrictId.trim()) {
+      account.homeDistrictId = body.homeDistrictId.trim().slice(0, 60);
+    }
+    if (typeof body.homeDistrictName === 'string' && body.homeDistrictName.trim()) {
+      account.homeDistrictName = body.homeDistrictName.trim().slice(0, 80);
+    }
+    if (body.role === 'Citizen' || body.role === 'LSG / Police Officer') {
+      account.role = body.role;
+    }
+    if (typeof body.abhaHealthId === 'string') {
+      account.abhaHealthId = body.abhaHealthId.trim().slice(0, 64);
+    }
+    if (typeof body.academicStream === 'string') {
+      account.academicStream = body.academicStream.trim().slice(0, 100);
+    }
+
+    res.status(200).json({ profile: toPublicProfile(account) });
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

@@ -31,6 +31,8 @@ import { sendPoliceCaseAlertEmail } from '../utils/emailAlert';
 import { EmergencyHelplineStrip } from './EmergencyHelplineStrip';
 import { VoiceMicControl } from './VoiceMicControl';
 
+import type { UserProfile } from '../shared/authSchema';
+
 export interface PoliceCasePrefill {
   districtId?: string;
   description: string;
@@ -46,6 +48,7 @@ interface PoliceSafetyDeskViewProps {
   ) => void;
   prefill?: PoliceCasePrefill | null;
   onClearPrefill?: () => void;
+  activeUser?: UserProfile;
 }
 
 const SAMPLE_POLICE_SCENARIOS = [
@@ -146,9 +149,12 @@ export const PoliceSafetyDeskView: React.FC<PoliceSafetyDeskViewProps> = ({
   onUpdatePoliceCaseEmailStatus,
   prefill,
   onClearPrefill,
+  activeUser,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [districtId, setDistrictId] = useState<string>('pathanamthitta');
+  const [districtId, setDistrictId] = useState<string>(
+    activeUser?.homeDistrictId || 'pathanamthitta'
+  );
   const [incidentDateTime, setIncidentDateTime] = useState<string>(() =>
     formatLocalDateTimeInput()
   );
@@ -161,6 +167,12 @@ export const PoliceSafetyDeskView: React.FC<PoliceSafetyDeskViewProps> = ({
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(
     policeCases[0]?.id ?? null
   );
+
+  useEffect(() => {
+    if (activeUser?.homeDistrictId && !prefill) {
+      setDistrictId(activeUser.homeDistrictId);
+    }
+  }, [activeUser?.homeDistrictId, prefill]);
 
   useEffect(() => {
     if (prefill) {

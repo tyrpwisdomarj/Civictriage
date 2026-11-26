@@ -11,6 +11,7 @@ import {
   type StudyPlanData,
   type WeekendItineraryData,
 } from '../data/localLifeData';
+import type { HospitalAppointmentRecord } from '../data/healthcareData';
 
 export interface DemoScenarioBundle {
   tickets: StoredTicket[];
@@ -25,6 +26,7 @@ export interface DemoScenarioBundle {
   demoJobApplications: JobApplicationRecord[];
   demoEventPlan: EventPlanData;
   demoFoodOrders: OnSpotFoodOrder[];
+  demoHospitalBookings: HospitalAppointmentRecord[];
 }
 
 /**
@@ -600,6 +602,15 @@ export function buildDemoScenarioBundle(): DemoScenarioBundle {
       source: 'Manual',
       note: 'Pathanamthitta Ring Road · Evening slot',
     },
+    {
+      id: 'exp-demo-5',
+      title: 'Dr. George Kurian · MGM Muthoot Hospitals (Cardiology OP)',
+      category: 'Healthcare & OP',
+      amountInr: 450,
+      date: todayLabel,
+      source: 'Hospital Booking',
+      note: 'Pass OP-PVT-482910 · Auto-logged via 7012692128@fam UPI',
+    },
   ];
 
   const demoJobApplications: JobApplicationRecord[] = [
@@ -707,6 +718,59 @@ export function buildDemoScenarioBundle(): DemoScenarioBundle {
     },
   ];
 
+  const demoHospitalBookings: HospitalAppointmentRecord[] = [
+    {
+      tokenId: 'OP-GOV-741920',
+      bookingType: 'Govt e-OP Token',
+      hospitalId: 'hosp-gh-pta',
+      hospitalName: 'General Hospital Pathanamthitta',
+      districtName: 'Pathanamthitta',
+      isGovernment: true,
+      department: 'General Medicine',
+      doctorId: 'doc-pta-1',
+      doctorName: 'Dr. Ramesh Kumar Nair',
+      appointmentDate: tomorrow,
+      timeSlot: '09:30 AM',
+      patientName: 'Arjit Anil',
+      patientAge: 26,
+      patientGender: 'Male',
+      patientPhone: '+91 98470 21845',
+      symptoms: 'Annual preventive health checkup & blood sugar screening',
+      abhaHealthId: '91-4821-7390-5124',
+      consultationFeeInr: 0,
+      paidAmountInr: 0,
+      isDemoFare: false,
+      utrNumber: null,
+      bookedAt: todayLabel,
+      status: 'CONFIRMED · QR PASS READY',
+    },
+    {
+      tokenId: 'OP-PVT-482910',
+      bookingType: 'Private Specialist Pass',
+      hospitalId: 'hosp-mgm-muthoot',
+      hospitalName: 'MGM Muthoot Hospitals, Pathanamthitta & Kozhencherry',
+      districtName: 'Pathanamthitta',
+      isGovernment: false,
+      department: 'Cardiology',
+      doctorId: 'doc-mgm-1',
+      doctorName: 'Dr. George Kurian',
+      appointmentDate: tomorrow,
+      timeSlot: '04:30 PM',
+      patientName: 'Arjit Anil',
+      patientAge: 26,
+      patientGender: 'Male',
+      patientPhone: '+91 98470 21845',
+      symptoms: 'ECG & Cardiology wellness review',
+      abhaHealthId: '91-4821-7390-5124',
+      consultationFeeInr: 450,
+      paidAmountInr: 1,
+      isDemoFare: true,
+      utrNumber: '632981047219',
+      bookedAt: todayLabel,
+      status: 'CONFIRMED · QR PASS READY',
+    },
+  ];
+
   return {
     tickets,
     policeCases,
@@ -720,5 +784,6 @@ export function buildDemoScenarioBundle(): DemoScenarioBundle {
     demoJobApplications,
     demoEventPlan,
     demoFoodOrders,
+    demoHospitalBookings,
   };
 }

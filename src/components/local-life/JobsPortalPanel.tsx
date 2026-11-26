@@ -26,17 +26,20 @@ import {
   type JobQualification,
 } from '../../data/localLifeData';
 import { readAiCache, writeAiCache } from '../../utils/aiResponseCache';
+import type { UserProfile } from '../../shared/authSchema';
 
 interface JobsPortalPanelProps {
   districtName: string;
   jobApplications: JobApplicationRecord[];
   onSubmitJobApplication: (record: JobApplicationRecord) => void;
+  activeUser?: UserProfile;
 }
 
 export const JobsPortalPanel: React.FC<JobsPortalPanelProps> = ({
   districtName,
   jobApplications,
   onSubmitJobApplication,
+  activeUser,
 }) => {
   const [locationFilter, setLocationFilter] = useState<string>('Pathanamthitta & Kerala');
   const [categoryFilter, setCategoryFilter] = useState<JobCategory>('All Categories');
@@ -162,16 +165,18 @@ export const JobsPortalPanel: React.FC<JobsPortalPanelProps> = ({
   const openQuickApply = (job: JobListingEntry) => {
     setApplyJob(job);
     setSubmittedRecord(null);
-    if (!applicantName) setApplicantName('Arjit Anil');
-    if (!email) setEmail('arjit.career@keralamail.in');
+    setApplicantName(activeUser?.fullName || applicantName || 'Arjit Anil');
+    setEmail(activeUser?.email || email || 'arjit.career@keralamail.in');
     if (!phone) setPhone('+91 98470 21845');
     setCoverNote('');
   };
 
   const handleAutofillProfileAndCover = async () => {
     if (!applyJob) return;
-    setApplicantName('Arjit Anil');
-    setEmail('arjit.career@keralamail.in');
+    const resolvedName = activeUser?.fullName || 'Arjit Anil';
+    const resolvedEmail = activeUser?.email || 'arjit.career@keralamail.in';
+    setApplicantName(resolvedName);
+    setEmail(resolvedEmail);
     setPhone('+91 98470 21845');
     setQualification(
       applyJob.qualification === '10th / Plus Two'
@@ -182,7 +187,7 @@ export const JobsPortalPanel: React.FC<JobsPortalPanelProps> = ({
     );
     setSkills(applyJob.skills.join(', ') + ', English & Malayalam');
 
-    const cacheKey = `job_cover::${applyJob.id}::${applyJob.title}`;
+    const cacheKey = `job_cover::${applyJob.id}::${applyJob.title}::${resolvedName}`;
     const cached = readAiCache<string>(cacheKey);
     if (cached) {
       setCoverNote(cached);
@@ -199,7 +204,7 @@ export const JobsPortalPanel: React.FC<JobsPortalPanelProps> = ({
           districtName: applyJob.district,
           institutionName: applyJob.employer,
           stream: applyJob.title,
-          applicantName: 'Arjit Anil',
+          applicantName: resolvedName,
           query: applyJob.skills.join(', '),
         }),
       });

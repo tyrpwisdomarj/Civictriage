@@ -84,6 +84,8 @@ export interface TravelDistrictGuideViewProps {
   myTicketsOpen: boolean;
   corridorHazardReport: CorridorHazardReport;
   externalWorldDest?: WorldDestinationRequest | null;
+  externalViewMode?: { mode: ExplorerViewMode; token: number } | null;
+  onViewModeChange?: (mode: ExplorerViewMode) => void;
   onOriginIdChange: (id: string) => void;
   onDestinationIdChange: (id: string | null) => void;
   onTicketIssued: (ticket: BookedETicket) => void;
@@ -108,6 +110,8 @@ export function TravelDistrictGuideView({
   myTicketsOpen,
   corridorHazardReport,
   externalWorldDest = null,
+  externalViewMode = null,
+  onViewModeChange,
   onOriginIdChange,
   onDestinationIdChange,
   onTicketIssued,
@@ -125,7 +129,23 @@ export function TravelDistrictGuideView({
   );
 
   // Start in Photorealistic 3D Blue Marble Earth Globe View (Switchable to Whole India Relief / State Topography / Kerala Diorama)
-  const [viewMode, setViewMode] = useState<ExplorerViewMode>('globe');
+  const [viewMode, setViewModeState] = useState<ExplorerViewMode>(
+    externalViewMode?.mode ?? 'globe'
+  );
+  const setViewMode = useCallback(
+    (next: ExplorerViewMode) => {
+      setViewModeState(next);
+      onViewModeChange?.(next);
+    },
+    [onViewModeChange]
+  );
+
+  useEffect(() => {
+    if (externalViewMode) {
+      setViewModeState(externalViewMode.mode);
+    }
+  }, [externalViewMode]);
+
   const [selectedIndiaStateId, setSelectedIndiaStateId] = useState<string>('kerala');
   const [selectedStateDistrictLabel, setSelectedStateDistrictLabel] = useState<string | null>(null);
   const [showBiodiversity, setShowBiodiversity] = useState<boolean>(true);

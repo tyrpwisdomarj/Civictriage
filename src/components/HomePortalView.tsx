@@ -7,6 +7,7 @@ import {
   FilePlus2,
   Globe2,
   GraduationCap,
+  HeartPulse,
   Plane,
   ShieldAlert,
   Sparkles,
@@ -330,6 +331,17 @@ export function HomePortalView({
               </div>
 
               <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => onNavigateLocalLife('healthcare')}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl bg-[#EFECE8]/85 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 border border-black/5 dark:border-white/10 text-xs font-semibold text-slate-800 dark:text-slate-100 transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
+                    Hospitals, Doctors &amp; Instant QR OP Booking
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                </button>
                 <button
                   type="button"
                   onClick={() => onNavigateLocalLife('education')}

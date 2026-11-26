@@ -9,6 +9,7 @@ import {
   Download,
   FileCheck2,
   GraduationCap,
+  HeartPulse,
   MapPin,
   PartyPopper,
   QrCode,
@@ -56,14 +57,19 @@ import { WeekendPlannerPanel } from './local-life/WeekendPlannerPanel';
 import { ExpenseTrackerPanel } from './local-life/ExpenseTrackerPanel';
 import { JobsPortalPanel } from './local-life/JobsPortalPanel';
 import { EventManagementAIPanel } from './local-life/EventManagementAIPanel';
+import { HealthcareDirectoryPanel } from './local-life/HealthcareDirectoryPanel';
+import type { HospitalAppointmentRecord } from '../data/healthcareData';
+import type { UserProfile } from '../shared/authSchema';
 
 interface LocalLifeHubViewProps {
+  activeUser?: UserProfile;
   section: LocalLifeSection;
   districtId: string;
   bookedCount: number;
   studyPlan: StudyPlanData | null;
   admissionApplications: AdmissionApplicationRecord[];
   jobApplications: JobApplicationRecord[];
+  hospitalBookings: HospitalAppointmentRecord[];
   weekendItinerary: WeekendItineraryData | null;
   eventPlan: EventPlanData | null;
   foodOrders: OnSpotFoodOrder[];
@@ -77,6 +83,7 @@ interface LocalLifeHubViewProps {
   onStudyPlanChange: (next: StudyPlanData) => void;
   onSubmitAdmission: (record: AdmissionApplicationRecord) => void;
   onSubmitJobApplication: (record: JobApplicationRecord) => void;
+  onBookHospitalAppointment: (record: HospitalAppointmentRecord) => void;
   onWeekendItineraryChange: (next: WeekendItineraryData) => void;
   onEventPlanChange: (next: EventPlanData) => void;
   onPlaceFoodOrder: (order: OnSpotFoodOrder) => void;
@@ -87,12 +94,14 @@ interface LocalLifeHubViewProps {
 }
 
 export function LocalLifeHubView({
+  activeUser,
   section,
   districtId,
   bookedCount,
   studyPlan,
   admissionApplications,
   jobApplications,
+  hospitalBookings,
   weekendItinerary,
   eventPlan,
   foodOrders,
@@ -106,6 +115,7 @@ export function LocalLifeHubView({
   onStudyPlanChange,
   onSubmitAdmission,
   onSubmitJobApplication,
+  onBookHospitalAppointment,
   onWeekendItineraryChange,
   onEventPlanChange,
   onPlaceFoodOrder,
@@ -296,6 +306,12 @@ export function LocalLifeHubView({
             onChange={onSectionChange}
             options={[
               {
+                id: 'healthcare',
+                label: 'Healthcare & Wellness',
+                icon: <HeartPulse className="w-3.5 h-3.5" />,
+                badge: hospitalBookings.length || undefined,
+              },
+              {
                 id: 'education',
                 label: 'Education',
                 icon: <GraduationCap className="w-3.5 h-3.5" />,
@@ -373,6 +389,18 @@ export function LocalLifeHubView({
           </div>
         </div>
       </LiquidGlassCard>
+
+      {/* SECTION 0: HEALTHCARE & WELLNESS (HOSPITALS, DOCTORS & INSTANT QR OP BOOKING) */}
+      {section === 'healthcare' && (
+        <HealthcareDirectoryPanel
+          districtId={districtId}
+          districtName={activeDistrictName}
+          hospitalBookings={hospitalBookings}
+          onBookAppointment={onBookHospitalAppointment}
+          onOpenSpotGallery={onOpenSpotGallery}
+          activeUser={activeUser}
+        />
+      )}
 
       {/* SECTION 1: INTERACTIVE EDUCATION HUB */}
       {section === 'education' && (
@@ -543,6 +571,7 @@ export function LocalLifeHubView({
           districtName={activeDistrictName}
           jobApplications={jobApplications}
           onSubmitJobApplication={onSubmitJobApplication}
+          activeUser={activeUser}
         />
       )}
 
@@ -715,6 +744,7 @@ export function LocalLifeHubView({
         institution={selectedInstitution}
         onClose={() => setSelectedInstitution(null)}
         onSubmitApplication={onSubmitAdmission}
+        activeUser={activeUser}
         onOpenPictureLibrary={(inst) => {
           const meta = getEducationPortalMeta(inst);
           onOpenSpotGallery({

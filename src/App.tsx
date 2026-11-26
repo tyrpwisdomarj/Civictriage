@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyTicketCorroboration,
   computeQueueMetrics,
@@ -32,6 +32,7 @@ import {
 } from './utils/emailAlert';
 import { SidebarNav, type WorkspaceTab } from './components/SidebarNav';
 import { TopBar, type GlobalSearchResult } from './components/TopBar';
+import { AuthGateModal } from './components/AuthGateModal';
 import { HomePortalView } from './components/HomePortalView';
 import { LocalLifeHubView } from './components/LocalLifeHubView';
 import { TriageIntakeForm } from './components/TriageIntakeForm';
@@ -47,6 +48,7 @@ import {
   TravelDistrictGuideView,
   type WorldDestinationRequest,
 } from './components/travel/TravelDistrictGuideView';
+import type { ExplorerViewMode } from './components/travel/Kerala3DMapScene';
 import { UpiPaymentModal } from './components/travel/UpiPaymentModal';
 import { AssistantChatbotWidget } from './components/AssistantChatbotWidget';
 import { OfflineIndicator } from './components/OfflineIndicator';
@@ -55,6 +57,7 @@ import {
   type SpotGalleryRequest,
 } from './components/SpotPictureLibraryDrawer';
 import { useThemeMode } from './hooks/useThemeMode';
+import { useUserVaultAuth } from './hooks/useUserVaultAuth';
 import { DEFAULT_ORIGIN_ID, getRegionById } from './data/keralaMapData';
 import type {
   AdmissionApplicationRecord,
@@ -68,6 +71,7 @@ import type {
   StudyPlanData,
   WeekendItineraryData,
 } from './data/localLifeData';
+import type { HospitalAppointmentRecord } from './data/healthcareData';
 import {
   getTomorrowIsoDate,
   type BookedETicket,
@@ -75,74 +79,60 @@ import {
 } from './shared/bookingSchema';
 import type {
   AssistantActionId,
+  AssistantChatMessage,
   AssistantSessionContext,
 } from './shared/assistantSchema';
+import {
+  loadUserVaultJson,
+  saveUserVaultJson,
+  type VaultSectionKey,
+} from './shared/authSchema';
 
-const STORAGE_KEY = 'civictriage_lsg_tickets_v1';
-const BOOKED_TICKETS_STORAGE_KEY = 'civictriage_booked_tickets_v1';
-const POLICE_CASES_STORAGE_KEY = 'civictriage_police_cases_v1';
-const STUDY_PLAN_STORAGE_KEY = 'civictriage_study_plan_v1';
-const ADMISSIONS_STORAGE_KEY = 'civictriage_admissions_v1';
-const JOB_APPS_STORAGE_KEY = 'civictriage_job_apps_v1';
-const WEEKEND_PLAN_STORAGE_KEY = 'civictriage_weekend_plan_v1';
-const EVENT_PLAN_STORAGE_KEY = 'civictriage_event_plan_v1';
-const FOOD_ORDERS_STORAGE_KEY = 'civictriage_food_orders_v1';
-const EXPENSES_STORAGE_KEY = 'civictriage_expenses_v1';
-const BUDGET_GOAL_STORAGE_KEY = 'civictriage_budget_goal_v1';
-
-function loadSavedJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function loadSavedBookedTickets(): BookedETicket[] {
-  try {
-    const raw = window.localStorage.getItem(BOOKED_TICKETS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as BookedETicket[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function loadSavedPoliceCases(): StoredPoliceCase[] {
-  try {
-    const raw = window.localStorage.getItem(POLICE_CASES_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as StoredPoliceCase[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function loadInitialTickets(): StoredTicket[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return INITIAL_SEED_TICKETS;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed as StoredTicket[];
-    }
-  } catch {
-    // Fall back to deterministic seed tickets
-  }
-  return INITIAL_SEED_TICKETS;
+function loadUserTickets(userId: string): StoredTicket[] {
+  const saved = loadUserVaultJson<StoredTicket[] | null>(userId, 'tickets', null);
+  if (Array.isArray(saved)) return saved;
+  return userId === 'guest_demo_citizen' ? INITIAL_SEED_TICKETS : [];
 }
 
 export default function App() {
   const { theme, toggleTheme } = useThemeMode();
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('home');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const {
+    activeUser,
+    effectiveUser,
+    activeUserId,
+    authGateOpen,
+    authModalMode,
+    authBusy,
+    authError,
+    savedAccounts,
+    cloudSyncEnabled,
+    signInWithGoogle,
+    signUpWithEmail,
+    signInWithEmail,
+    continueAsGuest,
+    updateProfile,
+    signOutUser,
+    openAuthModal,
+    closeAuthModal,
+    setAuthModalMode,
+    loadCloudVaultForUser,
+    syncVaultSectionToCloud,
+  } = useUserVaultAuth();
 
-  const [tickets, setTickets] = useState<StoredTicket[]>(loadInitialTickets);
-  const [policeCases, setPoliceCases] = useState<StoredPoliceCase[]>(loadSavedPoliceCases);
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('home');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeTravelMode, setActiveTravelMode] = useState<ExplorerViewMode>('globe');
+  const [externalTravelMode, setExternalTravelMode] = useState<{
+    mode: ExplorerViewMode;
+    token: number;
+  } | null>(null);
+
+  const hydratedUserIdRef = useRef<string>(activeUserId);
+
+  const [tickets, setTickets] = useState<StoredTicket[]>(() => loadUserTickets(activeUserId));
+  const [policeCases, setPoliceCases] = useState<StoredPoliceCase[]>(() =>
+    loadUserVaultJson<StoredPoliceCase[]>(activeUserId, 'policeCases', [])
+  );
   const [policePrefill, setPolicePrefill] = useState<PoliceCasePrefill | null>(null);
   const [demoLoaded, setDemoLoaded] = useState(false);
 
@@ -163,51 +153,59 @@ export default function App() {
   const [latestTicketId, setLatestTicketId] = useState<string | null>(null);
 
   // Lifted Travel & Booked Tickets state so the global AI Assistant & Corridor Matcher stay live
-  const [travelOriginId, setTravelOriginId] = useState<string>(DEFAULT_ORIGIN_ID);
+  const [travelOriginId, setTravelOriginId] = useState<string>(
+    effectiveUser.homeDistrictId || DEFAULT_ORIGIN_ID
+  );
   const [travelDestinationId, setTravelDestinationId] = useState<string | null>(null);
   const [externalWorldDest, setExternalWorldDest] =
     useState<WorldDestinationRequest | null>(null);
-  const [bookedTickets, setBookedTickets] = useState<BookedETicket[]>(
-    loadSavedBookedTickets
+  const [bookedTickets, setBookedTickets] = useState<BookedETicket[]>(() =>
+    loadUserVaultJson<BookedETicket[]>(activeUserId, 'bookings', [])
   );
   const [myTicketsOpen, setMyTicketsOpen] = useState<boolean>(false);
 
   // Local Life Hub state + Feeder Pass UPI Modal state
   const [localLifeSection, setLocalLifeSection] = useState<LocalLifeSection>('education');
-  const [localLifeDistrictId, setLocalLifeDistrictId] = useState<string>('pathanamthitta');
+  const [localLifeDistrictId, setLocalLifeDistrictId] = useState<string>(
+    effectiveUser.homeDistrictId || 'pathanamthitta'
+  );
   const [feederPaymentDraft, setFeederPaymentDraft] = useState<BookingDraft | null>(null);
   const [feederPaymentFare, setFeederPaymentFare] = useState<number>(0);
   const [feederPaymentOpen, setFeederPaymentOpen] = useState<boolean>(false);
 
-  // Education, Jobs, Lifestyle, Weekend Planner, Event AI, Expenses & Global Picture Library state
+  // Per-user isolated Education, Jobs, Healthcare, Lifestyle, Weekend, Event AI, Expenses & Chat state
   const [studyPlan, setStudyPlan] = useState<StudyPlanData | null>(() =>
-    loadSavedJson<StudyPlanData | null>(STUDY_PLAN_STORAGE_KEY, null)
+    loadUserVaultJson<StudyPlanData | null>(activeUserId, 'studyPlans', null)
   );
   const [admissionApplications, setAdmissionApplications] = useState<
     AdmissionApplicationRecord[]
-  >(() =>
-    loadSavedJson<AdmissionApplicationRecord[]>(ADMISSIONS_STORAGE_KEY, [])
-  );
+  >(() => loadUserVaultJson<AdmissionApplicationRecord[]>(activeUserId, 'admissions', []));
   const [jobApplications, setJobApplications] = useState<JobApplicationRecord[]>(() =>
-    loadSavedJson<JobApplicationRecord[]>(JOB_APPS_STORAGE_KEY, [])
+    loadUserVaultJson<JobApplicationRecord[]>(activeUserId, 'jobApps', [])
+  );
+  const [hospitalBookings, setHospitalBookings] = useState<HospitalAppointmentRecord[]>(() =>
+    loadUserVaultJson<HospitalAppointmentRecord[]>(activeUserId, 'hospitalBookings', [])
   );
   const [weekendItinerary, setWeekendItinerary] =
     useState<WeekendItineraryData | null>(() =>
-      loadSavedJson<WeekendItineraryData | null>(WEEKEND_PLAN_STORAGE_KEY, null)
+      loadUserVaultJson<WeekendItineraryData | null>(activeUserId, 'weekendPlans', null)
     );
   const [eventPlan, setEventPlan] = useState<EventPlanData | null>(() =>
-    loadSavedJson<EventPlanData | null>(EVENT_PLAN_STORAGE_KEY, null)
+    loadUserVaultJson<EventPlanData | null>(activeUserId, 'eventPlan', null)
   );
   const [foodOrders, setFoodOrders] = useState<OnSpotFoodOrder[]>(() =>
-    loadSavedJson<OnSpotFoodOrder[]>(FOOD_ORDERS_STORAGE_KEY, [])
+    loadUserVaultJson<OnSpotFoodOrder[]>(activeUserId, 'foodOrders', [])
   );
   const [expenses, setExpenses] = useState<ExpenseEntry[]>(() =>
-    loadSavedJson<ExpenseEntry[]>(EXPENSES_STORAGE_KEY, [])
+    loadUserVaultJson<ExpenseEntry[]>(activeUserId, 'expenses', [])
   );
   const [budgetGoalInr, setBudgetGoalInr] = useState<number>(() => {
-    const saved = loadSavedJson<number>(BUDGET_GOAL_STORAGE_KEY, 12000);
+    const saved = loadUserVaultJson<number>(activeUserId, 'budgetGoal', 12000);
     return typeof saved === 'number' && saved > 0 ? saved : 12000;
   });
+  const [chatHistory, setChatHistory] = useState<AssistantChatMessage[]>(() =>
+    loadUserVaultJson<AssistantChatMessage[]>(activeUserId, 'chatHistory', [])
+  );
   const [activeSpotGallery, setActiveSpotGallery] =
     useState<SpotGalleryRequest | null>(null);
 
@@ -215,129 +213,155 @@ export default function App() {
     initEmailJs();
   }, []);
 
+  // Switch & isolate all user vault slices immediately whenever activeUserId changes
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
-    } catch {
-      // Ignore storage quota errors on very large uploaded data URLs
+    let cancelled = false;
+    hydratedUserIdRef.current = '__switching__';
+
+    const localTickets = loadUserTickets(activeUserId);
+    const localPolice = loadUserVaultJson<StoredPoliceCase[]>(activeUserId, 'policeCases', []);
+    const localBookings = loadUserVaultJson<BookedETicket[]>(activeUserId, 'bookings', []);
+    const localStudy = loadUserVaultJson<StudyPlanData | null>(activeUserId, 'studyPlans', null);
+    const localAdmissions = loadUserVaultJson<AdmissionApplicationRecord[]>(
+      activeUserId,
+      'admissions',
+      []
+    );
+    const localJobs = loadUserVaultJson<JobApplicationRecord[]>(activeUserId, 'jobApps', []);
+    const localHospitals = loadUserVaultJson<HospitalAppointmentRecord[]>(
+      activeUserId,
+      'hospitalBookings',
+      []
+    );
+    const localWeekend = loadUserVaultJson<WeekendItineraryData | null>(
+      activeUserId,
+      'weekendPlans',
+      null
+    );
+    const localEvent = loadUserVaultJson<EventPlanData | null>(activeUserId, 'eventPlan', null);
+    const localFood = loadUserVaultJson<OnSpotFoodOrder[]>(activeUserId, 'foodOrders', []);
+    const localExpenses = loadUserVaultJson<ExpenseEntry[]>(activeUserId, 'expenses', []);
+    const localBudget = loadUserVaultJson<number>(activeUserId, 'budgetGoal', 12000);
+    const localChat = loadUserVaultJson<AssistantChatMessage[]>(activeUserId, 'chatHistory', []);
+
+    setTickets(localTickets);
+    setPoliceCases(localPolice);
+    setBookedTickets(localBookings);
+    setStudyPlan(localStudy);
+    setAdmissionApplications(localAdmissions);
+    setJobApplications(localJobs);
+    setHospitalBookings(localHospitals);
+    setWeekendItinerary(localWeekend);
+    setEventPlan(localEvent);
+    setFoodOrders(localFood);
+    setExpenses(localExpenses);
+    setBudgetGoalInr(typeof localBudget === 'number' && localBudget > 0 ? localBudget : 12000);
+    setChatHistory(localChat);
+    setLatestTicketId(localTickets[0]?.id ?? null);
+    setSelectedQueueTicketId(null);
+
+    if (effectiveUser.homeDistrictId) {
+      setTravelOriginId(effectiveUser.homeDistrictId);
+      setLocalLifeDistrictId(effectiveUser.homeDistrictId);
     }
+
+    const hydrate = async () => {
+      if (cloudSyncEnabled) {
+        const cloud = await loadCloudVaultForUser(activeUserId);
+        if (!cancelled && cloud) {
+          if (Array.isArray(cloud.tickets)) setTickets(cloud.tickets as StoredTicket[]);
+          if (Array.isArray(cloud.policeCases)) setPoliceCases(cloud.policeCases as StoredPoliceCase[]);
+          if (Array.isArray(cloud.bookings)) setBookedTickets(cloud.bookings as BookedETicket[]);
+          if (cloud.studyPlans !== undefined) setStudyPlan(cloud.studyPlans as StudyPlanData | null);
+          if (Array.isArray(cloud.admissions))
+            setAdmissionApplications(cloud.admissions as AdmissionApplicationRecord[]);
+          if (Array.isArray(cloud.jobApps))
+            setJobApplications(cloud.jobApps as JobApplicationRecord[]);
+          if (Array.isArray(cloud.hospitalBookings))
+            setHospitalBookings(cloud.hospitalBookings as HospitalAppointmentRecord[]);
+          if (cloud.weekendPlans !== undefined)
+            setWeekendItinerary(cloud.weekendPlans as WeekendItineraryData | null);
+          if (cloud.eventPlan !== undefined) setEventPlan(cloud.eventPlan as EventPlanData | null);
+          if (Array.isArray(cloud.foodOrders))
+            setFoodOrders(cloud.foodOrders as OnSpotFoodOrder[]);
+          if (Array.isArray(cloud.expenses)) setExpenses(cloud.expenses as ExpenseEntry[]);
+          if (typeof cloud.budgetGoal === 'number' && cloud.budgetGoal > 0)
+            setBudgetGoalInr(cloud.budgetGoal);
+          if (Array.isArray(cloud.chatHistory))
+            setChatHistory(cloud.chatHistory as AssistantChatMessage[]);
+        }
+      }
+      if (!cancelled) {
+        hydratedUserIdRef.current = activeUserId;
+      }
+    };
+
+    void hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeUserId, effectiveUser.homeDistrictId, cloudSyncEnabled, loadCloudVaultForUser]);
+
+  const persistSlice = <T,>(section: VaultSectionKey, value: T) => {
+    if (hydratedUserIdRef.current !== activeUserId) return;
+    saveUserVaultJson(activeUserId, section, value);
+    if (cloudSyncEnabled) {
+      void syncVaultSectionToCloud(activeUserId, section, value);
+    }
+  };
+
+  useEffect(() => {
+    persistSlice('tickets', tickets);
   }, [tickets]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        BOOKED_TICKETS_STORAGE_KEY,
-        JSON.stringify(bookedTickets)
-      );
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('bookings', bookedTickets);
   }, [bookedTickets]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        POLICE_CASES_STORAGE_KEY,
-        JSON.stringify(policeCases)
-      );
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('policeCases', policeCases);
   }, [policeCases]);
 
   useEffect(() => {
-    try {
-      if (studyPlan) {
-        window.localStorage.setItem(
-          STUDY_PLAN_STORAGE_KEY,
-          JSON.stringify(studyPlan)
-        );
-      } else {
-        window.localStorage.removeItem(STUDY_PLAN_STORAGE_KEY);
-      }
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('studyPlans', studyPlan);
   }, [studyPlan]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        ADMISSIONS_STORAGE_KEY,
-        JSON.stringify(admissionApplications)
-      );
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('admissions', admissionApplications);
   }, [admissionApplications]);
 
   useEffect(() => {
-    try {
-      if (weekendItinerary) {
-        window.localStorage.setItem(
-          WEEKEND_PLAN_STORAGE_KEY,
-          JSON.stringify(weekendItinerary)
-        );
-      } else {
-        window.localStorage.removeItem(WEEKEND_PLAN_STORAGE_KEY);
-      }
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('weekendPlans', weekendItinerary);
   }, [weekendItinerary]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('expenses', expenses);
   }, [expenses]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        BUDGET_GOAL_STORAGE_KEY,
-        JSON.stringify(budgetGoalInr)
-      );
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('budgetGoal', budgetGoalInr);
   }, [budgetGoalInr]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        JOB_APPS_STORAGE_KEY,
-        JSON.stringify(jobApplications)
-      );
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('jobApps', jobApplications);
   }, [jobApplications]);
 
   useEffect(() => {
-    try {
-      if (eventPlan) {
-        window.localStorage.setItem(EVENT_PLAN_STORAGE_KEY, JSON.stringify(eventPlan));
-      } else {
-        window.localStorage.removeItem(EVENT_PLAN_STORAGE_KEY);
-      }
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('hospitalBookings', hospitalBookings);
+  }, [hospitalBookings]);
+
+  useEffect(() => {
+    persistSlice('eventPlan', eventPlan);
   }, [eventPlan]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        FOOD_ORDERS_STORAGE_KEY,
-        JSON.stringify(foodOrders)
-      );
-    } catch {
-      // Ignore quota errors
-    }
+    persistSlice('foodOrders', foodOrders);
   }, [foodOrders]);
+
+  useEffect(() => {
+    persistSlice('chatHistory', chatHistory);
+  }, [chatHistory]);
 
   const metrics = useMemo(() => computeQueueMetrics(tickets), [tickets]);
 
@@ -381,6 +405,11 @@ export default function App() {
 
     return {
       activeTab: tabLabels[activeTab],
+      userName: effectiveUser.fullName,
+      userEmail: effectiveUser.email,
+      userRole: effectiveUser.role,
+      userHomeDistrict: effectiveUser.homeDistrictName,
+      userAcademicStream: effectiveUser.academicStream,
       travelOriginName: originRegion?.name ?? 'Pathanamthitta',
       travelDestinationName: destRegion?.name ?? null,
       localLifeDistrict: localLifeDistrictObj?.name ?? 'All Kerala',
@@ -434,6 +463,7 @@ export default function App() {
     };
   }, [
     activeTab,
+    effectiveUser,
     travelOriginId,
     travelDestinationId,
     localLifeDistrictId,
@@ -524,7 +554,12 @@ export default function App() {
       setActiveTab('police');
       return;
     }
-    if (res.category === 'education' || res.category === 'lifestyle' || res.category === 'transport') {
+    if (
+      res.category === 'education' ||
+      res.category === 'lifestyle' ||
+      res.category === 'transport' ||
+      res.category === 'healthcare'
+    ) {
       setLocalLifeSection(res.category);
       if (res.payload) setLocalLifeDistrictId(res.payload);
       setActiveTab('local_life');
@@ -542,7 +577,7 @@ export default function App() {
       seatPreference: 'Window',
       selectedSeats: ['Feeder Day Pass · Open Boarding'],
       travelDate: getTomorrowIsoDate(),
-      passengerName: 'Kerala Commuter',
+      passengerName: effectiveUser.fullName || 'Kerala Commuter',
       passengerAge: 26,
       passengerCount: 1,
       baseFareInr: route.fareInr,
@@ -571,6 +606,19 @@ export default function App() {
 
   const handleSubmitJobApplication = (record: JobApplicationRecord) => {
     setJobApplications((prev) => [record, ...prev]);
+  };
+
+  const handleBookHospitalAppointment = (record: HospitalAppointmentRecord) => {
+    setHospitalBookings((prev) => [record, ...prev]);
+    if (record.consultationFeeInr > 0) {
+      handleAddExpense({
+        title: `${record.doctorName ? `${record.doctorName} · ` : ''}${record.hospitalName} (${record.department})`,
+        category: 'Healthcare & OP',
+        amountInr: record.consultationFeeInr,
+        source: 'Hospital Booking',
+        note: `Pass ${record.tokenId} · ${record.appointmentDate} ${record.timeSlot} · UTR ${record.utrNumber || 'Auto'}`,
+      });
+    }
   };
 
   const handlePlaceFoodOrder = (order: OnSpotFoodOrder) => {
@@ -614,6 +662,7 @@ export default function App() {
     setStudyPlan(bundle.demoStudyPlan);
     setAdmissionApplications(bundle.demoAdmissionApplications);
     setJobApplications(bundle.demoJobApplications);
+    setHospitalBookings(bundle.demoHospitalBookings);
     setWeekendItinerary(bundle.demoWeekendItinerary);
     setEventPlan(bundle.demoEventPlan);
     setFoodOrders(bundle.demoFoodOrders);
@@ -911,10 +960,21 @@ export default function App() {
   const topBarActionLabel =
     activeTab === 'intake' ? 'Reset Intake' : 'New Issue Intake';
 
+  const handleSelectTravelModeFromDrawer = (mode: ExplorerViewMode) => {
+    setActiveTravelMode(mode);
+    setExternalTravelMode({ mode, token: Date.now() });
+    setActiveTab('travel');
+  };
+
+  const handleSelectLocalLifeFromDrawer = (sec: LocalLifeSection) => {
+    setLocalLifeSection(sec);
+    setActiveTab('local_life');
+  };
+
   return (
     <div
       id="top"
-      className="relative min-h-screen flex text-[#111315] dark:text-slate-100 transition-colors duration-300"
+      className="relative min-h-screen w-full flex flex-col text-[#111315] dark:text-slate-100 transition-colors duration-300"
     >
       {/* Floating Ambient Liquid Glass Background Orbs */}
       <div
@@ -926,21 +986,35 @@ export default function App() {
         <div className="ambient-orb-3 absolute bottom-[-12%] left-[28%] w-[440px] h-[440px] rounded-full bg-[#67E8F9]/25 dark:bg-cyan-500/15 blur-[115px]" />
       </div>
 
+      {/* Hidden-by-Default Slide-Out iOS Liquid Glass Side Drawer */}
       <SidebarNav
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        onSelectDepartmentFilter={handleSelectDepartmentFromSidebar}
+        activeTravelMode={activeTravelMode}
+        activeLocalLifeSection={localLifeSection}
+        activeUser={effectiveUser}
         metrics={metrics}
         activePoliceCount={activePoliceCount}
         bookedTicketsCount={bookedTickets.length}
-        mobileOpen={mobileMenuOpen}
-        onCloseMobile={() => setMobileMenuOpen(false)}
+        themeMode={theme}
+        demoLoaded={demoLoaded}
+        onSelectTab={setActiveTab}
+        onSelectTravelMode={handleSelectTravelModeFromDrawer}
+        onSelectLocalLifeSection={handleSelectLocalLifeFromDrawer}
+        onSelectDepartmentFilter={handleSelectDepartmentFromSidebar}
+        onToggleTheme={toggleTheme}
+        onLoadDemoData={handleLoadDemoData}
+        onOpenAccountModal={openAuthModal}
+        onSignOut={() => void signOutUser()}
       />
 
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* Full-Width Main Workspace (100% Viewport Width) */}
+      <div className="flex-1 w-full min-w-0 flex flex-col">
         <TopBar
           activeTab={activeTab}
-          onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          activeUser={effectiveUser}
+          onOpenDrawer={() => setDrawerOpen(true)}
           onGoHome={() => setActiveTab('home')}
           onPrimaryAction={handleTopBarPrimaryAction}
           primaryActionLabel={topBarActionLabel}
@@ -951,6 +1025,9 @@ export default function App() {
           onSelectSearchResult={handleSelectGlobalSearchResult}
           themeMode={theme}
           onToggleTheme={toggleTheme}
+          onOpenProfileModal={() => openAuthModal('profile')}
+          onOpenSwitchAccountModal={() => openAuthModal('signin')}
+          onSignOut={() => void signOutUser()}
         />
 
         {activeTab === 'travel' ? (
@@ -962,6 +1039,8 @@ export default function App() {
               myTicketsOpen={myTicketsOpen}
               corridorHazardReport={corridorHazardReport}
               externalWorldDest={externalWorldDest}
+              externalViewMode={externalTravelMode}
+              onViewModeChange={setActiveTravelMode}
               onOriginIdChange={setTravelOriginId}
               onDestinationIdChange={setTravelDestinationId}
               onTicketIssued={handleIssueTicketWithAutoExpense}
@@ -974,7 +1053,7 @@ export default function App() {
             />
           </main>
         ) : (
-          <main className="flex-1 w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
             {activeTab === 'home' && (
               <HomePortalView
                 metrics={metrics}
@@ -992,7 +1071,7 @@ export default function App() {
             )}
 
             {activeTab === 'intake' && (
-              <div className="space-y-6">
+              <div className="space-y-6 dark-adaptive-view">
                 <EmergencyHelplineStrip />
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1037,41 +1116,48 @@ export default function App() {
             )}
 
             {activeTab === 'queue' && (
-              <TicketQueueView
-                tickets={tickets}
-                metrics={metrics}
-                filters={queueFilters}
-                selectedTicketId={selectedQueueTicketId}
-                policeCases={policeCases}
-                onFiltersChange={setQueueFilters}
-                onSelectTicket={setSelectedQueueTicketId}
-                onUpdateStatus={handleUpdateStatus}
-                onVerifyRepairResolved={handleVerifyRepairResolved}
-                onDeleteTicket={handleDeleteTicket}
-                onStartNewIntake={() => setActiveTab('intake')}
-                onUpdatePoliceCase={handleUpdatePoliceCase}
-                onOpenPoliceDesk={() => setActiveTab('police')}
-              />
+              <div className="dark-adaptive-view">
+                <TicketQueueView
+                  tickets={tickets}
+                  metrics={metrics}
+                  filters={queueFilters}
+                  selectedTicketId={selectedQueueTicketId}
+                  policeCases={policeCases}
+                  onFiltersChange={setQueueFilters}
+                  onSelectTicket={setSelectedQueueTicketId}
+                  onUpdateStatus={handleUpdateStatus}
+                  onVerifyRepairResolved={handleVerifyRepairResolved}
+                  onDeleteTicket={handleDeleteTicket}
+                  onStartNewIntake={() => setActiveTab('intake')}
+                  onUpdatePoliceCase={handleUpdatePoliceCase}
+                  onOpenPoliceDesk={() => setActiveTab('police')}
+                />
+              </div>
             )}
 
             {activeTab === 'police' && (
-              <PoliceSafetyDeskView
-                policeCases={policeCases}
-                onAddPoliceCase={handleAddPoliceCase}
-                onUpdatePoliceCaseEmailStatus={handleUpdatePoliceCaseEmailStatus}
-                prefill={policePrefill}
-                onClearPrefill={() => setPolicePrefill(null)}
-              />
+              <div className="dark-adaptive-view">
+                <PoliceSafetyDeskView
+                  policeCases={policeCases}
+                  onAddPoliceCase={handleAddPoliceCase}
+                  onUpdatePoliceCaseEmailStatus={handleUpdatePoliceCaseEmailStatus}
+                  prefill={policePrefill}
+                  onClearPrefill={() => setPolicePrefill(null)}
+                  activeUser={effectiveUser}
+                />
+              </div>
             )}
 
             {activeTab === 'local_life' && (
               <LocalLifeHubView
+                activeUser={effectiveUser}
                 section={localLifeSection}
                 districtId={localLifeDistrictId}
                 bookedCount={bookedTickets.length}
                 studyPlan={studyPlan}
                 admissionApplications={admissionApplications}
                 jobApplications={jobApplications}
+                hospitalBookings={hospitalBookings}
                 weekendItinerary={weekendItinerary}
                 eventPlan={eventPlan}
                 foodOrders={foodOrders}
@@ -1088,6 +1174,7 @@ export default function App() {
                 onStudyPlanChange={setStudyPlan}
                 onSubmitAdmission={handleSubmitAdmission}
                 onSubmitJobApplication={handleSubmitJobApplication}
+                onBookHospitalAppointment={handleBookHospitalAppointment}
                 onWeekendItineraryChange={setWeekendItinerary}
                 onEventPlanChange={setEventPlan}
                 onPlaceFoodOrder={handlePlaceFoodOrder}
@@ -1098,10 +1185,33 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'policy' && <RoutingPolicyView />}
+            {activeTab === 'policy' && (
+              <div className="dark-adaptive-view">
+                <RoutingPolicyView />
+              </div>
+            )}
           </main>
         )}
       </div>
+
+      {/* iOS Liquid Glass Auth Gate & Profile / Switch Account Modal */}
+      <AuthGateModal
+        open={authGateOpen}
+        mode={authModalMode}
+        activeUser={activeUser}
+        savedAccounts={savedAccounts}
+        busy={authBusy}
+        error={authError}
+        cloudSyncEnabled={cloudSyncEnabled}
+        onModeChange={setAuthModalMode}
+        onClose={closeAuthModal}
+        onSignInGoogle={signInWithGoogle}
+        onSignInEmail={signInWithEmail}
+        onSignUpEmail={signUpWithEmail}
+        onContinueAsGuest={continueAsGuest}
+        onUpdateProfile={updateProfile}
+        onSignOut={signOutUser}
+      />
 
       {/* Local Feeder Pass UPI Modal (shared 7012692128@fam gateway + Auto-Verify) */}
       <UpiPaymentModal
@@ -1132,10 +1242,13 @@ export default function App() {
         }}
       />
 
-      {/* Floating Context-Aware AI Customer Assistance Chatbot (Global) */}
+      {/* Floating Context-Aware AI Customer Assistance Chatbot (Global, Per-User Isolated) */}
       <AssistantChatbotWidget
+        key={activeUserId}
         sessionContext={assistantSessionContext}
         onNavigateAction={handleAssistantNavigate}
+        persistedMessages={chatHistory}
+        onMessagesChange={setChatHistory}
       />
 
       {/* Offline Connectivity Banner */}
