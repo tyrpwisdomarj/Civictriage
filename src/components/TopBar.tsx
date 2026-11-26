@@ -1,5 +1,6 @@
 import { Check, Menu, Sparkles } from 'lucide-react';
 import type { WorkspaceTab } from './SidebarNav';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface TopBarProps {
   activeTab: WorkspaceTab;
@@ -71,6 +72,7 @@ export function TopBar({
       </div>
 
       <div className="shrink-0 flex items-center gap-2">
+        <PWAInstallButton />
         {onLoadDemoData && (
           <button
             type="button"

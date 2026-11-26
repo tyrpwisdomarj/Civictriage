@@ -43,6 +43,7 @@ import {
 } from './components/PoliceSafetyDeskView';
 import { TravelDistrictGuideView } from './components/travel/TravelDistrictGuideView';
 import { AssistantChatbotWidget } from './components/AssistantChatbotWidget';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { DEFAULT_ORIGIN_ID, getRegionById } from './data/keralaMapData';
 import type { BookedETicket } from './shared/bookingSchema';
 import type {
@@ -693,6 +694,9 @@ export default function App() {
         sessionContext={assistantSessionContext}
         onNavigateAction={handleAssistantNavigate}
       />
+
+      {/* Offline Connectivity Banner */}
+      <OfflineIndicator />
     </div>
   );
 }

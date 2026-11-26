@@ -1,0 +1,591 @@
+MASTER APPLICATION BUILD SPECIFICATION PROMPT: CivicTriage LSG
+==============================================================
+
+Build CivicTriage LSG ("Kerala Smart Mobility & Civic"), a unified civic-tech, municipal triage, police safety, and interactive 3D Kerala & South India regional mobility platform designed for Kerala Local Self-Governments (LSGs / K-SMART workflows), Kerala Police (THUNA & Pol-App workflows), and regional travelers.
+
+All 5 primary workspaces, interactive 3D scenes, modals, external alert hooks, local persistence, and the global context-aware AI assistant must interoperate through shared live session state.
+
+
+----------------------------------------------------------------------
+1. VISUAL DESIGN SYSTEM (THEME, COLORS & TYPOGRAPHY)
+----------------------------------------------------------------------
+
+1.1 Aesthetic & Surface Language
+- Theme Mode: Bright, clean, colorful daylight civic-mobility UI.
+- Page Background Canvas: Soft diagonal daylight wash blending cool sky tint (#F0F9FF) -> crisp white (#FFFFFF) -> soft emerald tint (#ECFDF5).
+- Card Surfaces: Frosted translucent white panels (90% white opacity over soft blur), thin cool-slate borders (#E2E8F0 at 80% opacity), generous rounded corners (14-20 px), and soft diffused elevation shadows.
+- Primary Ink: Deep Slate (#0F172A) for headings and primary values; Muted Slate (#475569 and #64748B) for secondary labels and metadata.
+
+1.2 Typography
+- Display & Section Headings (H1-H4): Plus Jakarta Sans (weights 600-800) with Noto Sans Malayalam fallback.
+- Body & Controls: Public Sans (weights 400-600) with Noto Sans Malayalam fallback.
+- Technical Identifiers, Scores, PNRs, Fares, Timestamps & JSON: IBM Plex Mono with tabular numerals enabled.
+
+1.3 Semantic Color Tokens
+- Critical / Emergency / KSEB / Spam Rejection / Active Hazard:
+  Primary Accent: #E11D48 / #EF4444 (Rose / Crimson) | Soft Surface: #FFF1F2
+  Usage: Severity 9-10, 112 ERSS alert, KSEB Electrical badge, Spam guardrail banner, Critical corridor hazards.
+- High Priority / PWD / Selected 3D Seat / Demo Mode:
+  Primary Accent: #F59E0B / #F97316 (Warm Amber / Orange) | Soft Surface: #FFFBEB
+  Usage: Severity 7-8, PWD Roads badge, Corroboration boost banner, Selected 3D seat highlight, Rs. 1 Demo Fare toggle.
+- Medium Priority / KWA / IRCTC / Dispatched / Focus:
+  Primary Accent: #0284C7 / #0EA5E9 (Ocean Sky Blue) | Soft Surface: #F0F9FF
+  Usage: Severity 4-6, KWA Water badge, Dispatched status, Officer Dashboard active tab, IRCTC channel.
+- Low Priority / Resolved / Sanitation / Available 3D Seat / Origin:
+  Primary Accent: #10B981 / #16A34A / #0D9488 (Emerald / Teal) | Soft Surface: #ECFDF5
+  Usage: Severity 1-3, Resolved & AI Verified Fix, Waste & Sanitation, Available 3D seats, Origin beacon, Citizen Report active tab.
+- Police & Safety / Public Safety Dept / Cyber Crime:
+  Primary Accent: #4F46E5 / #1E3A8A (Indigo / Royal Navy) | Soft Surface: #EEF2FF
+  Usage: Police & Safety Desk hero & tab, Public Safety & Encroachment, Petition Slip header, Locked House Intimation.
+- Booked / Disabled / Invalid / Secondary Chrome:
+  Primary Accent: #64748B / #94A3B8 (Slate Gray) | Soft Surface: #F1F5F9
+  Usage: Booked 3D seats, Rejected / Invalid status, Secondary actions.
+
+
+----------------------------------------------------------------------
+2. GLOBAL APPLICATION SHELL, NAVIGATION & SHARED COMPONENTS
+----------------------------------------------------------------------
+
+2.1 Persistent Left Sidebar (264 px desktop; slide-over drawer on mobile)
+1. Brand Header (clickable; returns to Citizen Report):
+   - Rounded emerald-to-sky gradient emblem with sparkle icon.
+   - Title: CivicTriage LSG
+   - Subtitle: Kerala Smart Mobility & Civic
+2. Primary Navigation Tabs (5 items; active item uses a vibrant pill gradient fill with white text):
+   - Citizen Report (intake) — Emerald -> Teal -> Sky gradient.
+   - Officer Dashboard (queue) — Sky -> Blue -> Indigo gradient; shows live total ticket count badge.
+   - Police & Safety (police) — Indigo -> Blue -> Sky gradient; shows live open (non-disposed) police case count badge when > 0.
+   - Travel & 3D Explorer (travel) — Emerald -> Sky -> Amber gradient.
+   - Routing Policy (policy) — Amber -> Orange -> Rose gradient.
+3. Municipal Departments Quick-Filter Section:
+   - Lists all 6 municipal departments with a color-coded dot, short name, and live count of tickets in that department.
+   - Clicking any department navigates to Officer Dashboard (Municipal LSG Queue) with the department filter automatically set to that department.
+4. Sidebar Footer Card:
+   - Title: K-SMART Triage Standard
+   - Copy: "Multimodal visual cross-check & 3D regional mobility for Kerala Local Self-Governments."
+
+2.2 Sticky Top Bar (56 px height)
+- Left: Mobile sidebar toggle button (small screens) + Breadcrumb: "LSG Civic & Mobility Console / <Active Screen Name>".
+- Right:
+  1. "Load Demo Data" Button: One-click demo seeder (temporarily switches label to "Demo Loaded" for 3 seconds). Populates:
+     - 4 Kerala civic tickets:
+       (a) KSM-20261125-9012 — Critical Landslide Washout & Waterlogging on NH-766 Wayanad Ghat Corridor (PWD, Severity 9 Critical, Dispatched, 4 citizen corroborations, Police escalation flagged).
+       (b) KSM-20261125-9008 — Snapped Live KSEB Wire Across Wet Road on Pathanamthitta-Ranni Corridor (KSEB, Severity 10 Critical, Triaged, 2 corroborations).
+       (c) KSM-20261125-9004 — Overflowing Waste Bin & Blocked Drain Outside Thrissur Ward 19 Health Centre (Waste & Sanitation, Severity 7 High, Dispatched, 3 corroborations).
+       (d) KSM-20261125-8996 — Cleared Stormwater Drain Inlet Near Kochi MG Road Bus Bay (KWA, Severity 5 Medium, Resolved with AI Repair Verification proof).
+     - 2 Kerala Police cases:
+       (a) KL-WND-2026-8492 — Critical 112 Emergency Traffic Obstruction (overturned timber lorry on NH-766 Thamarassery-Vythiri Ghat, Wayanad, status: Assigned to SHO / Beat Officer).
+       (b) KL-PTA-2026-8415 — Standard Lost Property / Document GD (lost wallet with KL-03 DL & Aadhaar at Pathanamthitta KSRTC Bus Stand, status: Submitted).
+     - 1 Confirmed Travel E-Ticket:
+       PNR 4829104756, IRCTC, Chengannur (CNGR) — Pathanamthitta Railhead -> Kozhikode (CLT) — Wayanad Feeder Hub, 16649 Parasuram / Malabar Express (IRCTC), Class 3A, Seat B1-18 Lower, Passenger Arjit Anil (Age 26), Travel Date: tomorrow, Actual Fare ₹685, Paid ₹1 (Demo Fare), UTR 632918472910.
+     - Sets Travel & 3D Explorer route to Origin Pathanamthitta -> Destination Wayanad (immediately triggering live Corridor Hazard Alerts and 3D warning beacons).
+  2. Primary Top CTA:
+     - When on Citizen Report: "Reset Intake" (clears form, selected image, and current result).
+     - On all other tabs: "New Issue Intake" (switches to Citizen Report and resets intake).
+
+2.3 Reusable Shared Widgets
+1. Kerala 24x7 Emergency & Civic Helplines Strip:
+   - Two variants: Full 5-Column Strip (top of Citizen Report and Police & Safety Desk) and Compact Strip (inside Floating AI Chatbot header).
+   - 5 tappable direct-dial cards (tel: links):
+     * 112  — Police / ERSS (24x7 Unified Emergency Response, Rose)
+     * 1930 — Cyber Fraud (National Cyber Crime Helpline, Indigo)
+     * 1912 — KSEB Power (Electrical & Live Wire Faults, Amber)
+     * 1916 — KWA Water (Water Supply & Burst Pipes, Sky)
+     * 1077 — Disaster Room (District Emergency Control, Emerald)
+2. Multilingual Speech-to-Text Voice Control:
+   - Integrated into Citizen Report, Police & Safety Desk, and Floating AI Chatbot (compact mode).
+   - Uses native speech recognition (gracefully hidden if unsupported on the device).
+   - Language selector pill toggling between English (en-IN) and Malayalam (ml-IN).
+   - Microphone button pulses crimson while listening, displays live interim transcript preview, and appends finalized speech text cleanly into the target text field.
+
+2.4 Local Persistence & Initial Seed Data
+Persist 3 collections locally across sessions:
+1. civictriage_lsg_tickets_v1 — Initialized with 4 seed civic tickets if empty:
+   - KSM-20261124-1042: Aluva Municipality Ward 14 near Anil Bakery — Snapped Overhead Electrical Wire (KSEB, Severity 10 Critical, Triaged, Manglish).
+   - KSM-20261124-1038: Kochi Corporation Ward 28 near Kerala Bakery — Large Water-Filled Carriageway Pothole (PWD, Severity 8 High, Dispatched, Malayalam).
+   - KSM-20261124-1031: Kozhikode Corporation Ward 9 — Minor Curb Ponding vs "MASSIVE FLOOD" claim (KWA, Severity 2 Low, Triaged, English, exaggeration_or_mismatch = true).
+   - KSM-20261124-1024: Kottayam Municipality Ward 7 — Indoor Coffee Mug (Invalid / Other, Severity 0, Rejected, Spam Guardrail).
+2. civictriage_police_cases_v1 — Defaults to empty list.
+3. civictriage_booked_tickets_v1 — Defaults to empty list.
+
+
+----------------------------------------------------------------------
+3. SCREEN-BY-SCREEN UI LAYOUT & INTERACTION SPECIFICATION
+----------------------------------------------------------------------
+
+=== SCREEN 1: CITIZEN REPORT (intake) ===
+Layout: Full Emergency Helpline Strip across the top, followed by a 2-column split (Left 5/12: Intake Form; Right 7/12: Sticky Triage Result Panel).
+
+Left Column — Citizen Intake Form:
+1. Header: Title + concise instruction explaining multimodal photo + English/Malayalam/Manglish triage.
+2. 1-Click Test Scenarios Strip (5 quick-fill buttons loading sample photo, location hint, and realistic description):
+   - Snapped Power Cable (Manglish — Aluva Ward 14 / KSEB Critical)
+   - Main Road Pothole (Malayalam — Kochi Ward 28 / PWD High)
+   - Small Curb Puddle (English — Kozhikode Ward 9 / Exaggeration Cross-Check)
+   - Overflowing Waste Bin (Manglish — Thrissur Ward 19 / Waste & Sanitation)
+   - Indoor Coffee Mug (English — Kottayam Ward 7 / Spam Guardrail Rejection)
+3. Photo Upload Zone:
+   - Supports drag-and-drop or file picker (JPEG, PNG, WebP, max 8 MB).
+   - Once loaded: displays photo preview, filename, file size, and Replace / Remove buttons.
+4. Citizen Issue Description:
+   - Multi-line text input (up to 2,000 characters) accepting English, Malayalam, or Manglish, paired with Multilingual Voice Control (en-IN / ml-IN).
+5. Municipality / Panchayat & Ward (Optional):
+   - Single-line text input (up to 200 characters) for local body, ward, or landmark clues.
+6. Primary Submit Button ("Run AI Triage"):
+   - Disabled until both a photo and non-empty description exist; shows loading state during API call.
+   - Calls POST /api/triage with imageBase64, mimeType, description, and locationHint.
+   - Post-Triage Behavior:
+     * If is_valid_civic_issue === false: saves ticket with workflowStatus = "Rejected", emailAlertStatus = "not_applicable". NEVER sends an officer alert email.
+     * If is_valid_civic_issue === true:
+       (1) Runs Duplicate Report Clustering (Section 5.1).
+       (2) If a matching open ticket in the same department is found (score >= 2): increments corroborationCount (+1), boosts severity_score by +1 (capped at 10), recalculates severity band and SLA, sets wasCorroborationBoosted = true, updates existing ticket, and re-triggers officer EmailJS alert.
+       (3) Otherwise: generates ID KSM-YYYYMMDD-XXXX, sets workflowStatus = "Triaged", corroborationCount = 1, saves ticket, and triggers non-blocking officer EmailJS alert (Section 5.4).
+
+Right Column — Triage Result Panel:
+- Empty State: 4 numbered triage rule summary cards (Spam Guardrail, Visual Cross-Check, 6-Department Routing, Formal K-SMART Drafting) + clickable list of up to 4 recent triaged tickets.
+- Loading State: Animated multimodal analysis skeleton.
+- Error State: Clear error alert with Retry button.
+- Populated Ticket State:
+  * Top toolbar: Segmented toggle ("K-SMART Ticket" vs "Raw JSON"), "Copy JSON" button (with copied confirmation), and "Download" button (exports <ticket-id>.json).
+  * Status Banner Row:
+    - If invalid: Crimson Spam Guardrail Rejected banner showing rejection_reason.
+    - If valid: Live EmailJS status pill ("Sending alert email...", "📧 Alert email flashed to officer", or "⚠️ Email skipped"), alongside workflow status pill (Triaged / Dispatched / Resolved).
+    - If boosted by duplicate clustering: Amber-orange banner "Linked to Active Ward Ticket — Priority Boosted!" with "Confirmed by X citizens" badge.
+    - If closed via repair verification: Emerald "AI Verified Resolved" badge with audit note.
+  * KPI Strip: 10-Segment Visual Severity Meter (color-coded + numeric X/10 + Band), Assigned Department & SLA Card, Detected Language & Location Clues Card.
+  * Detail Sections: Visual Severity Reasoning (1 sentence), Multimodal Cross-Check Callout (aligned vs exaggeration warning), Official Third-Person English K-SMART Summary (title + summary), Recommended Field Action, Extracted Landmarks chips.
+  * Action Footer Buttons:
+    - "Mark Dispatched" / "Mark Resolved" (for valid tickets).
+    - Conditional "Escalate to Police Desk" button (shown whenever requires_police_escalation === true, OR department === "Public Safety & Encroachment", OR severity_score >= 8): detects Kerala district from ticket text, pre-populates a draft petition in Police & Safety Desk with ticket ID, summary, landmarks, and photo, and navigates directly to Police & Safety.
+    - "View in Ticket Queue" (switches to Officer Dashboard with this ticket selected).
+
+
+=== SCREEN 2: OFFICER DASHBOARD (queue) ===
+Layout: Full-width municipal command view with a 4-card KPI strip on top, a Desk Switcher, filterable data table, and an interactive Inspector panel below.
+
+Top 4-Card Municipal Analytics & KPI Bar (numeric metric, contextual badge, horizontal progress bar, sub-caption):
+1. Total Active Hazards: Count of open valid tickets (not Resolved, not Rejected) vs total valid tickets.
+2. Critical SLA Alerts: Count of open valid tickets with severity_score >= 7.
+3. Resolution Rate %: round(resolvedValidTickets / totalValidTickets * 100)%.
+4. Active Police Petitions: Count of open police cases (status !== "Disposed / Closed") + high/critical share indicator.
+
+Desk Switcher Tabs:
+- "Municipal LSG Queue" (default)
+- "Police Station (SHO) Case Desk" (shows live open count; displays "File New Police Petition" button on the right when active)
+
+View A — Municipal LSG Queue:
+- Filter Bar: Search box (matches ID, title, summary, department, category, landmarks, local body, citizen text), Department dropdown (ALL + 6 departments), Workflow Status pills (All, Triaged, Dispatched, Resolved, Rejected).
+- Table Columns:
+  1. Ticket ID (monospace) + timestamp
+  2. Formal Ticket Title + location clue + optional amber "Confirmed by X citizens" badge
+  3. Color-coded Department badge
+  4. Color-coded Severity badge (X/10 · Band)
+  5. Workflow Status pill + emerald "AI Verified Fix" badge when verified
+  6. Row Action: "Verify Fix & Resolve" button for open valid tickets (opens Before/After Modal); "Inspect" for resolved/rejected tickets
+- Selected Ticket Inspector Panel (below table):
+  * Displays original Before Photo, side-by-side After Repair Proof Card (if AI-verified, with timestamp, verification note, and resolution email status), original citizen description, formal K-SMART summary, visual verification note, Raw JSON toggle, Copy JSON.
+  * Officer Controls: "Set Triaged", "Mark Dispatched", "Verify Fix & Resolve", and "Delete Ticket".
+
+Modal — Gemini Before/After Repair Verification ("Verify Fix & Resolve"):
+- Side-by-side comparison: Left shows original Before (Reported Hazard) photo and ticket summary; Right shows After Repair Photo uploader (JPEG, PNG, WebP, max 7 MB) + 1-click "Load Sample Repaired Photo" button (programmatically generates a clean, resurfaced sunlit asphalt road image).
+- Submit ("Run Gemini Repair Audit"): Calls POST /api/verify-repair with after-repair photo and original ticket context.
+- If is_resolved === true: displays emerald verification badge + verification_note, marks ticket workflowStatus = "Resolved", saves repairVerification record, and fires non-blocking EmailJS resolution alert ("[RESOLVED • AI VERIFIED]").
+- If is_resolved === false: displays crimson rejection notice + verification_note and keeps ticket open for re-upload.
+
+View B — Police Station (SHO) Case Desk:
+- Filter Bar: Search box (Case Ref ID, district, station, category, summary) + Status filter buttons (All Cases, Submitted, Assigned to SHO / Beat Officer, Under Inquiry, Disposed / Closed).
+- Cases Table: Case Ref ID (KL-XXX-YYYY-XXXX), District & Station, Case Category + [112 EMERGENCY] or [Locked House] tags, Priority badge, Live Status pill, Inspect action.
+- SHO Case Inspector Panel:
+  * 4 live status selector buttons (Submitted, Assigned to SHO / Beat Officer, Under Inquiry, Disposed / Closed) synchronized live with Police & Safety Desk.
+  * Formal Petition Summary, Required Documents Checklist, Actionable Legal Guidance, optional attached evidence preview, and SHO / Beat Officer Official Disposal Remarks textarea + "Save Disposal Remarks" button.
+
+
+=== SCREEN 3: POLICE & SAFETY DESK (police) ===
+Modeled on Kerala Police THUNA and Pol-App digital citizen services.
+
+- Hero Banner: Deep indigo-to-sky gradient header titled "Kerala Police & Citizen Safety Desk" ("THUNA & Pol-App Integrated Flow") with external links:
+  * Kerala Police THUNA (https://thuna.keralapolice.gov.in/)
+  * Pol-App Portal (https://keralapolice.gov.in/)
+- Full Emergency Helpline Strip (112, 1930, 1912, 1916, 1077).
+- 2-Column Workspace (Left 5/12: Intake Form; Right 7/12: Acknowledgement Slip & Logged Petitions):
+
+Left Column — e-Complaint / General Diary (GD) Form:
+1. 3 Quick Demo Scenario Buttons:
+   - Lost Passport / DL (GD) (Pathanamthitta — Lost document GD)
+   - UPI Cyber Scam (1930) (Ernakulam — Financial cyber fraud)
+   - NH-766 Accident Block (Wayanad — Life-safety highway obstruction)
+2. Kerala District Selector: All 14 Kerala districts (TVM through KSD) with default station and highway patrol desk.
+3. Incident Date & Time Picker (defaults to current local date/time).
+4. Multilingual Incident Statement textarea (8-2,500 chars; English, Malayalam, Manglish) + Multilingual Voice Control. (Auto-filled when escalated from Citizen Report).
+5. Supporting Evidence Upload (Optional): JPEG, PNG, WebP, or PDF (max 7 MB) with preview/filename and remove button.
+6. Submit ("Submit Police e-Complaint & Issue QR Slip"):
+   - Calls POST /api/police-triage.
+   - Generates Case Ref ID KL-<DISTCODE>-<YYYY>-<4-digits>.
+   - Saves to civictriage_police_cases_v1 with status = "Submitted".
+   - For Critical / Immediate, High, or is_emergency_life_threat === true, dispatches non-blocking EmailJS SHO alert ("[KERALA POLICE <caseRefId>]").
+
+Right Column — Acknowledgement Slip & Case History:
+1. Emergency Banner (Conditional): If is_emergency_life_threat === true, displays immediate crimson "DIAL 112 NOW" ERSS intervention banner with direct tel:112 link.
+2. Digital Police Petition Acknowledgement Slip:
+   - Dark navy header with Case Ref ID (monospace), Priority badge, "Download Slip" (.txt receipt), and "Print" buttons.
+   - Jurisdictional Police Station, Recommended Specialized Unit, Case Category, Incident Date/Time, SHO Email Alert status pill, and a deterministic 21x21 verification QR matrix seeded from the Case Ref ID.
+   - 4-Step Live Status Progress Bar: Submitted -> Assigned to SHO / Beat Officer -> Under Inquiry -> Disposed / Closed.
+   - Formal Third-Person English e-Petition Summary, Required Documents Checklist (3-5 items), Actionable Legal & Procedural Guidance, and SHO Disposal Remarks (when present).
+3. Your Logged Petitions & GD Entries: Clickable grid of all submitted police cases (including Locked House Intimations).
+
+
+=== SCREEN 4: TRAVEL & 3D EXPLORER (travel) ===
+Full-viewport split layout: Interactive 3D/2D Map Canvas on the left (~65% width desktop), Daylight Route Planner Drawer (445-475 px wide) on the right.
+
+4.1 Interactive 3D Map Canvas & Floating HUD
+- Floating Top HUD:
+  * In Globe View: "Dive into Kerala & South India", "Reset Camera", "2D Map / 3D View" toggle, "My Booked Tickets" (with live count badge).
+  * In Terrain View: "Whole Earth Globe View", Origin dropdown (14 Kerala districts; default Pathanamthitta), "Biodiversity & Culture" overlay toggle (default ON), "Reset Camera", "2D Map / 3D View" toggle, "My Booked Tickets".
+- Floating Bottom HUD:
+  * In Globe View: Prompt banner explaining click-India-to-dive interaction.
+  * In Terrain View: Quick Jump Bar with 9 featured destination buttons (Wayanad, Idukki, Ernakulam, Alappuzha, Thiruvananthapuram, Bengaluru, Coimbatore, Ooty, Chennai) + dropdown for all 20 destinations (14 Kerala districts + 6 Inter-State Gateways).
+
+- 3D Scene View 1 — Living Earth Globe:
+  * Deep space backdrop (#08203E) with sunlit orbital lighting and smooth orbit/zoom controls.
+  * Textured sunlit Earth sphere (radius 4.2) with vibrant ocean-blue seas, emerald-green continents, polar ice caps, highlighted India peninsula & Kerala coast, swirling translucent white cloud shell, and soft blue atmospheric glow halo.
+  * Pulsing golden beacon at Kerala (10.2°N, 76.6°E) with projected label "India & Kerala · Click to Dive".
+  * Clicking India/beacon or pressing "Dive into Kerala & South India" smoothly animates the camera into Terrain View.
+
+- 3D Scene View 2 — Lush Kerala & South India Miniature 3D Diorama:
+  * Bright daylight sky backdrop (#CBEAFE) with shimmering coastal water plane.
+  * 14 Kerala Districts rendered in accurate North-to-South / West-to-East spatial layout as beveled extruded 3D green terrain polygons (elevations 0.28-0.72; highest in Idukki 0.72 and Wayanad 0.62, lowest in Alappuzha 0.28).
+    - Hovering smoothly lifts elevation, glows outline, and displays region tooltip.
+    - Clicking sets Destination, animates camera toward it, draws trajectory arc, and calls Gemini Travel Pathway planner.
+  * Miniature 3D Diorama Props: Stylized procedural palms, Western Ghats mountain peaks, and terracotta houses.
+  * 6 Floating Inter-State Gateway Nodes: Mangaluru (KA-IXE), Mysuru (KA-MYQ), Bengaluru (KA-BLR), Ooty (TN-UDH), Coimbatore (TN-CJB), Chennai (TN-MAA).
+  * Toggleable Biodiversity & Culture 3D Layer: Stylized biome markers and non-overlapping badges on 9 curated regions (Pathanamthitta, Idukki, Wayanad, Alappuzha, Ernakulam, Kasaragod, Mysuru, Ooty, Chennai).
+  * Origin Beacon: Pulsing emerald-and-gold pin on selected Origin district.
+  * Live Corridor Hazard Beacons: Any Kerala district with open high-severity civic tickets (>= 7) or open high-priority/traffic/safety police cases renders a pulsing crimson/amber 3D warning beacon + projected "⚠ X HAZARD(S) · KL-XX" label.
+  * Animated Trajectory Arc: Glowing golden-coral 3D parabolic curve connecting Origin to Destination with continuously traveling luminous orb.
+- Graceful 2D Fallback: Automatic WebGL check, error boundary, and context-loss handler switch cleanly to an interactive 2D vector map preserving all region clicks, origin/destination states, hazard pulses, biodiversity badges, and route arc.
+
+4.2 Right Column — Daylight Travel & Route Planner Drawer
+1. Route Header: Origin -> Destination, Swap button (when destination is a Kerala district), and 3-way Travel Preference selector ("Balanced", "Budget KSRTC & Rail", "Fastest Air & Express").
+2. 2 Quick-Fill Route Presets:
+   - Pathanamthitta -> Wayanad (Western Ghats highland corridor)
+   - Pathanamthitta -> Bengaluru (Inter-state Rail / KSRTC Swift / Air)
+3. Summary Strip: Total estimated duration, estimated INR cost range, and "Book Full Journey (3D Seats)" button.
+4. "⚠️ Live Corridor Hazard & Safety Alert" Banner (shown when evaluateCorridorHazards finds >= 1 matching hazard along origin, destination, or intermediate spine districts): lists up to 3 hazards + bold Alternate Feeder Route Advisory (Section 5.2).
+5. Locked House Travel Intimation Card (Kerala Police Janamaithri Beat Patrol):
+   - Toggle switch revealing House/Ward address + Travel Dates inputs + "Log Beat Station Patrol Intimation" button (creates a StoredPoliceCase assigned to Origin district's Janamaithri Beat Patrol with KL-XXX-YYYY-XXXX ref) + THUNA & Pol-App links.
+6. Gemini Multi-Modal Route Planner Output (POST /api/travel-guide, cached by origin|destination|preference):
+   - Route Overview Summary.
+   - Origin Nearest Hubs Grid (Railway Station with station code, KSRTC Depot, Nearest Airport with IATA code).
+   - Sequential Multi-Modal Transport Steps (2-5 steps): Mode badge, From -> To, operator/train number/service, duration, approx INR fare, local tip, and "Book Ticket" button on bookable modes (Flight -> Flight 3D, Train -> IRCTC Rail, KSRTC/Interstate Bus -> KSRTC Bus) pre-populating the 3D Seat Booking Modal.
+   - Regional Culture & Biodiversity Card (Signature Flora, Signature Fauna, Cultural Highlight, Eco-Travel Tip).
+   - Top 3 Iconic Tourist Spots (Name, Category, Description, How-to-Reach-from-Hub).
+
+4.3 Modal — 3D Vehicle Seat Booking
+- Channel Switcher Tabs: "Flight 3D", "IRCTC Rail", "KSRTC Bus".
+- Interactive 3D Cabin Seat Picker (with "3D Cabin / 2D Deck" toggle, Orbit/Zoom/Reset controls, hover seat readout, legend: Emerald = Available, Amber/Gold = Selected [max 4 seats], Slate = Booked):
+  * Flight 3D: 3-3 narrow-body fuselage, 10 rows displayed as 3-12 (A-C | Aisle | D-F). Classes: Economy, Premium Economy, Business. Non-Business surcharges: Rows 3 & 7 (+₹350), Window A/F (+₹200).
+  * IRCTC Rail:
+    - 2S (Coach D3) & CC / Vande Bharat EC (Coach C1): 3+2 Chair Car, 8 rows (A-C | Aisle | D-E).
+    - SL (Coach S4) & 3A (Coach B1): 4 bays of authentic 3-tier berths (Lower, Middle, Upper facing + Side Lower, Side Upper across corridor = 32 berths).
+    - 2A (Coach A1): 4 bays of 2-tier AC berths (Lower, Upper + Side Lower, Side Upper = 24 berths).
+  * KSRTC Bus: 2+2 pushback coach, 9 rows (A-B | Aisle | C-D) with right-hand-drive front driver cabin. Tiers: Super Fast, KSRTC Swift Deluxe, Low Floor AC, Minnals. Plus 4 seat preference chips (Window, Aisle, Front Rows, Ladies Seat).
+  * Deterministic occupancy (~26% pre-booked via FNV-1a hash; first 2 seats always available).
+- Passenger & Fare Panel: Selected seat chips, Passenger Name, Age (5-105), Travel Date (defaults to tomorrow), Real-time INR Fare Breakdown (Section 5.3), official external portal link (Air India / IRCTC / Ente KSRTC Swift), and primary CTA "Pay via Native UPI QR (₹<total>)".
+
+4.4 Modal — Native UPI QR Payment Gateway & E-Ticket Issuance
+- Merchant VPA: 7012692128@fam (Merchant Name: CivicTriage Mobility).
+- "Demo Fare Mode (₹1 Live Test)" Toggle: Payable becomes ₹1 while displaying strikethrough actual fare and Demo Test badge.
+- QR Tabs: "Dynamic NPCI QR" (live QR for upi://pay?pa=7012692128@fam&pn=CivicTriage%20Mobility&am=<amount>&cu=INR&tn=Ticket-<ref>) vs "Static Wallet QR".
+- Payment Controls: Copy VPA button, supported app badges (FamPay, GPay, PhonePe, Paytm, BHIM), "Open UPI App Directly" deep-link, optional 12-digit numeric UTR input (strips non-digits, max 12 chars), and "Confirm Payment & Issue E-Ticket".
+- Confirmed E-Ticket View: Green CONFIRMED pass displaying PNR (AIxxxx / 10-digit IRCTC / KSRTC-xxxxxxx), Booking Ref (KSMxxxxxx), Route, Operator, Class/Tier, Seat Assignment, Travel Date, Passenger Name & Age, Paid Amount + Actual Fare + Demo tag, UTR, Merchant VPA, and verification QR. Automatically saved to civictriage_booked_tickets_v1.
+
+4.5 Slide-Over Drawer — My Booked Tickets
+- Lists all saved confirmed E-Tickets with PNR, channel badge, route, seats, travel date, fare/demo badge, UTR, and delete button.
+
+
+=== SCREEN 5: ROUTING POLICY (policy) ===
+Read-only governance reference with 3 structured panels:
+1. 6-Department Jurisdiction & Mapped Field Issues Table (PWD, KSEB, SAN, KWA, SAF, INV with scopes & examples).
+2. 0-10 Severity Scoring Matrix & SLA Table:
+   - 9-10 Critical  -> Immediate (0-4 hours)
+   - 7-8  High      -> Priority (24-48 hours)
+   - 4-6  Medium    -> Standard (Within 7 days)
+   - 1-3  Low       -> Scheduled (Within 14 days)
+   - 0    Rejected  -> Not Applicable
+3. K-SMART Strict JSON Output Contract Viewer (pretty-printed 15-field civic triage JSON schema).
+
+
+----------------------------------------------------------------------
+4. GLOBAL FLOATING AI CUSTOMER ASSISTANCE CHATBOT
+----------------------------------------------------------------------
+
+Accessible from every screen without interrupting active workflows.
+- Collapsed State: Bottom-right pulsing emerald-teal-sky pill launcher ("AI Help & Support").
+- Expanded Drawer (384 px desktop, mobile-responsive):
+  * Header: "CivicTriage Assistant • Online", live counts subtitle ("X civic · Y police · Z PNRs"), "Clear Chat", and Close button.
+  * Compact Emergency Helpline Strip (112, 1930, 1912, 1916, 1077).
+  * Scrollable Message History: Distinct user/assistant bubbles, timestamps, bullet formatting ("- " lines), typing indicator, error retry.
+  * In-App Navigation Action Chips (up to 3 clickable buttons rendered below assistant replies):
+    - citizen_report    -> Go to Citizen Report
+    - officer_dashboard -> Open Officer Dashboard
+    - police_desk       -> Open Police & Safety Desk
+    - travel_explorer   -> Open 3D Explorer
+    - my_tickets        -> View My Tickets (opens Travel Explorer + My Booked Tickets drawer)
+  * 4 One-Click Quick-Action Prompt Chips above input bar:
+    1. "How do I report a pothole or wire hazard?"
+    2. "Best route from Pathanamthitta to Wayanad?"
+    3. "Check my active tickets & booked PNRs"
+    4. "How does the UPI QR (₹1 demo) payment work?"
+  * Input Bar: Text field + compact Multilingual Voice Control (en-IN / ml-IN) + Send button.
+- Live Context Injection: Sends last 16 turns + read-only sessionContext (active tab, Travel Explorer origin/destination, up to 12 civic tickets, 10 police cases, 10 booked PNRs) to POST /api/assistant-chat.
+
+
+----------------------------------------------------------------------
+5. CORE STATE LOGIC, ALGORITHMS & EXTERNAL INTEGRATIONS
+----------------------------------------------------------------------
+
+5.1 Duplicate Report Clustering & Priority Corroboration
+- Candidate pool: existing tickets with is_valid_civic_issue === true, workflowStatus not in [Resolved, Rejected], same department.
+- Tokenize text (min length 3, lowercase, English alphanumeric + Malayalam Unicode \u0D00-\u0D7F; exclude stop-words: the, and, for, with, near, from, that, this, road, ward, issue, please, urgent, municipality, corporation, panchayat, kerala, public, main, street, area, spot).
+- Score each candidate:
+  * +3 per exact or substring-overlapping extracted_landmarks pair (min length 4 for substring).
+  * +1 per shared token across extracted_landmarks, location_clues, localBodyHint, ticket_title, issue_category (+ citizenDescription on incoming report).
+- If best match score >= 2:
+  * corroborationCount = (existing.corroborationCount || 1) + 1
+  * severity_score = min(10, max(1, existing.severity_score + 1))
+  * Recalculate severity_level and recommended_sla
+  * Set wasCorroborationBoosted = true and lastCorroboratedAt = now
+
+5.2 Hazard-Aware 3D Corridor Matching
+- Kerala South-to-North Spine Order:
+  thiruvananthapuram -> kollam -> pathanamthitta -> alappuzha -> kottayam -> idukki -> ernakulam -> thrissur -> palakkad -> malappuram -> kozhikode -> wayanad -> kannur -> kasaragod.
+- Inter-State Gateway Entry Mappings:
+  * bengaluru:  [palakkad, wayanad, thrissur]
+  * mysuru:     [wayanad, kozhikode]
+  * ooty:       [wayanad, malappuram, palakkad]
+  * coimbatore: [palakkad, thrissur]
+  * chennai:    [palakkad, thrissur, ernakulam]
+  * mangaluru:  [kasaragod, kannur]
+- Corridor Set: originId + destinationId + gateway entry districts + all spine districts between origin index and destination anchor index.
+- Hazard Qualification:
+  * Civic: Valid, open (Triaged/Dispatched), severity_score >= 7; district(s) detected via keyword patterns across localBodyHint, location_clues, ticket_title, formal_summary, extracted_landmarks (matching district names and key towns/highways such as Thiruvalla, Chengannur, Ranni, Aluva, Kochi, Kalpetta, Vythiri, NH-766, Thamarassery Ghat, Munnar, Walayar, etc.).
+  * Police: Open (status !== "Disposed / Closed"), and priority_level in [Critical / Immediate, High] OR case_category in [Traffic & Road Obstruction, Public Nuisance / Safety].
+- Sort critical hazards first and attach tailored Alternate Feeder Route Advisories for wayanad/kozhikode, pathanamthitta, ernakulam/thrissur, idukki, or generic mainline bypass.
+
+5.3 Dynamic Fare, PNR & UPI Formulas
+- Base Fare Parser: First integer >= 20 from fare text, clamped to [40, 18000] (fallback 180).
+- Flight Fare: base = max(2450, baseFare); Economy (x1.0 + 0), Premium Economy (x1.42 + 650), Business (x2.35 + 1850); round per-passenger to nearest 10; total = perPassenger * passengerCount + 320 (airportFee) + seatSurcharge.
+- IRCTC Rail Fare: base = max(40, baseFare); 2S (x1.0 + 0), SL (x1.55 + 40), 3A (x3.1 + 120), 2A (x4.35 + 190), CC / Vande Bharat EC (x4.9 + 240); round per-passenger to nearest 5; convenienceFee = 18 (2S/SL) or 36 (AC); total = perPassenger * passengerCount + convenienceFee + seatSurcharge.
+- KSRTC Bus Fare: base = max(40, baseFare); Super Fast (x1.0 + 0), KSRTC Swift Deluxe (x1.45 + 45), Low Floor AC (x1.85 + 85), Minnals (x1.65 + 65); round per-passenger to nearest 5; total = perPassenger * passengerCount + 15 (reservationFee) + seatSurcharge.
+- PNRs: Flight = "AI" + 4 chars (A-Z excluding I/O, 2-9); IRCTC = 10-digit int [4100000000..8899999999]; KSRTC = "KSRTC-" + 7-digit int. Booking Ref = "KSM" + 6-digit int.
+- UPI URI: upi://pay?pa=7012692128@fam&pn=CivicTriage%20Mobility&am=<amount>&cu=INR&tn=Ticket-<bookingRef>
+
+5.4 EmailJS Officer Alert Integration
+- Credentials: Service ID "service_g25zcy6", Template ID "template_avtam5t", Public Key "M0CXO-zaQNJ6uQjKY".
+- 9 Template Parameter Keys: ticket_title, department, urgency_level, severity_score, sla, landmarks, reasoning, description, recommended_action.
+- Non-blocking try/catch dispatch rules:
+  * Civic Triage: Send ONLY when is_valid_civic_issue === true (never when invalid).
+  * AI Repair Resolution: ticket_title = "[RESOLVED • AI VERIFIED] <title>", urgency_level = "Resolved", severity_score = "<old> -> 0 (Closed)", sla = "Closed-Loop Verified".
+  * Police Alert: Send ONLY when priority_level is Critical / Immediate or High OR is_emergency_life_threat === true, with ticket_title = "[KERALA POLICE <caseRefId>] <category>".
+
+
+----------------------------------------------------------------------
+6. DATA STRUCTURES & DOMAIN CATALOGS
+----------------------------------------------------------------------
+
+6.1 Civic Triage Ticket (StoredTicket)
+- id ("KSM-YYYYMMDD-XXXX"), createdAt (ISO), workflowStatus ("Triaged" | "Dispatched" | "Resolved" | "Rejected"), emailAlertStatus ("sending" | "sent" | "skipped" | "not_applicable"), imageUrl, imageName, citizenDescription, localBodyHint, corroborationCount (int), lastCorroboratedAt (ISO, optional), wasCorroborationBoosted (bool, optional).
+- triage (TriageTicketJSON): is_valid_civic_issue (bool), rejection_reason (string | null), department (6-value enum), issue_category, severity_score (0-10), severity_level ("Critical" | "High" | "Medium" | "Low" | "Rejected"), recommended_sla, severity_reasoning (1 sentence), ticket_title, formal_summary, extracted_landmarks (string[]), recommended_action, detected_language, location_clues (string | null), visual_verification_note, exaggeration_or_mismatch (bool), requires_police_escalation (bool, optional).
+- repairVerification (optional): verifiedAt, afterImageUrl, isResolved, verificationNote, emailStatus.
+
+6.2 Police Case (StoredPoliceCase)
+- id, caseRefId ("KL-<DISTCODE>-<YYYY>-<4-digits>"), createdAt, districtId, districtName, incidentDateTime, description, evidenceImageUrl (optional), evidenceFileName (optional), status ("Submitted" | "Assigned to SHO / Beat Officer" | "Under Inquiry" | "Disposed / Closed"), disposalRemarks, emailAlertStatus, isLockedHouseIntimation (bool, optional), travelDates (optional).
+- triage (PoliceTriageResult): is_emergency_life_threat (bool), case_category (6-value enum), recommended_unit, jurisdictional_station, priority_level ("Critical / Immediate" | "High" | "Standard"), formal_petition_summary, required_documents_checklist (string[]), actionable_legal_guidance.
+
+6.3 14 Kerala Districts & 6 Inter-State Gateways
+Kerala Districts (Code / Ref / Default Station / Elevation / Biome):
+ 1. Thiruvananthapuram (KL-01 / TVM / Cantonment PS / 0.44 / coastal_backwaters)
+ 2. Kollam             (KL-02 / KLM / Kollam East PS / 0.40 / coastal_backwaters)
+ 3. Pathanamthitta     (KL-03 / PTA / Pathanamthitta PS / 0.56 / western_ghats) [Default Origin]
+ 4. Alappuzha          (KL-04 / ALP / Alappuzha North PS / 0.28 / coastal_backwaters)
+ 5. Kottayam           (KL-05 / KTM / Kottayam West PS / 0.42 / coastal_backwaters)
+ 6. Idukki             (KL-06 / IDK / Thodupuzha / Painavu PS / 0.72 / western_ghats)
+ 7. Ernakulam          (KL-07 / EKM / Ernakulam Central PS / 0.44 / coastal_backwaters)
+ 8. Thrissur           (KL-08 / TSR / Thrissur Town East PS / 0.40 / coastal_backwaters)
+ 9. Palakkad           (KL-09 / PKD / Palakkad Town South PS / 0.50 / western_ghats)
+10. Malappuram         (KL-10 / MLP / Malappuram PS / 0.42 / western_ghats)
+11. Kozhikode          (KL-11 / KKD / Kozhikode Town PS / 0.36 / coastal_backwaters)
+12. Wayanad            (KL-12 / WND / Kalpetta PS / 0.62 / western_ghats)
+13. Kannur             (KL-13 / KNR / Kannur Town PS / 0.38 / coastal_backwaters)
+14. Kasaragod          (KL-14 / KSD / Kasaragod PS / 0.34 / coastal_backwaters)
+
+Inter-State Gateways:
+- Mangaluru (KA-IXE), Mysuru (KA-MYQ), Bengaluru (KA-BLR), Ooty (TN-UDH), Coimbatore (TN-CJB), Chennai (TN-MAA).
+
+6.4 Booked E-Ticket (BookedETicket)
+- id, pnr, bookingRef, channel ("flight" | "irctc" | "ksrtc"), from, to, operatorOrLine, classOrTier, seatAssignment, travelDate, passengerName, passengerAge, passengerCount, actualFareInr, paidAmountInr, isDemoFare, utrNumber (string | null), upiVpa ("7012692128@fam"), issuedAt, status ("CONFIRMED").
+
+
+----------------------------------------------------------------------
+7. BACKEND API ENDPOINTS & VERBATIM GEMINI PROMPTS
+----------------------------------------------------------------------
+
+All Gemini calls run server-side using GEMINI_API_KEY from environment variables, enforcing application/json structured output and transient retry on 503/500/UNAVAILABLE/DEADLINE_EXCEEDED.
+
+Health Check:
+GET /api/health -> { "ok": true }
+
+
+7.1 POST /api/triage — Multimodal Civic Issue Triage
+- Model: gemini-4-hydrogen (2-attempt transient retry).
+- Inputs: imageBase64 (JPEG/PNG/WebP/HEIC/HEIF), mimeType, description (1-2000 chars), locationHint (optional, max 200 chars).
+- Exact System Instruction:
+---
+You are an expert Municipal Civic Issue Triage AI for local self-government bodies (municipalities and panchayats in Kerala, integrating with official portals such as K-SMART). Your job is to analyze a citizen's uploaded image and text description (which may be in English, Malayalam, or Manglish) and convert it into a structured, actionable municipal triage ticket.
+
+Follow these strict rules:
+1. VALIDATION & SPAM GUARDRAIL: First inspect the image and text. If the image is unrelated to public civic infrastructure (e.g., selfies, memes, indoor private objects, completely dark/blurry unrecognizable photos), set "is_valid_civic_issue" to false, explain why clearly in "rejection_reason", set "department" to "Invalid / Other", and set "severity_score" to 0.
+2. MULTIMODAL CROSS-CHECK: Rely primarily on visual evidence in the photo. If the user's text exaggerates (e.g., claims "massive flood" for a tiny puddle) or is vague (e.g., "fix this fast"), base your severity and category strictly on what is actually visible in the image, while incorporating valid location/context clues from the text. Set "exaggeration_or_mismatch" to true whenever the citizen's text substantially exaggerates or contradicts the visual evidence, and explain the comparison objectively in "visual_verification_note".
+3. DEPARTMENT ROUTING: Map the issue strictly to one of these municipal departments:
+   - "Public Works & Roads (PWD)" (potholes, broken footpaths, road cave-ins, fallen trees blocking roads)
+   - "Electrical & Streetlights (KSEB)" (broken streetlights, hanging/live wires, damaged transformer fencing)
+   - "Waste & Sanitation" (overflowing bins, illegal garbage dumping, dead animals, clogged public drains)
+   - "Water Supply & Drainage (KWA)" (burst water pipes, open manholes, severe waterlogging/flooding)
+   - "Public Safety & Encroachment" (abandoned vehicles, blocked emergency access, damaged public signage)
+   - "Invalid / Other" (if not a valid civic issue)
+4. SEVERITY SCORING (1 to 10 for valid issues, 0 for invalid):
+   - 9–10 (Critical): Immediate threat to life or severe accident risk (e.g., exposed live wires, open deep manhole, major road collapse, heavy flooding).
+   - 7–8 (High): Major disruption or health hazard requiring action within 24–48 hours (e.g., large pothole on main road, burst water main, massive garbage pile near school/hospital).
+   - 4–6 (Medium): Standard maintenance needed within a week (e.g., single non-working streetlight, moderate drain silt, minor footpath damage).
+   - 1–3 (Low): Cosmetic or minor inconvenience (e.g., faded road markings, tiny harmless curb puddle, overgrown roadside weeds).
+5. EXPLAINABILITY: Provide a crisp, objective 1-sentence "severity_reasoning" explaining the exact visual risk factors observed.
+6. FORMAL TICKET DRAFTING: Translate any local slang, Manglish, or Malayalam into a formal, neutral, third-person English summary ("formal_summary") and concise subject line ("ticket_title") suitable for an official government portal like K-SMART.
+7. OUTPUT FORMAT: Return ONLY valid JSON matching the exact schema provided. Do not wrap in markdown code fences or add conversational text.
+---
+- Exact User Prompt:
+---
+Analyze the attached citizen photograph and text description according to all municipal triage rules.
+Citizen Description: <description>
+Reported Local Body / Ward / Landmark: <locationHint or "Not provided">
+---
+- Required JSON Response Fields: is_valid_civic_issue, rejection_reason (nullable), department (6-value enum), issue_category, severity_score (int 0-10), severity_reasoning, ticket_title, formal_summary, extracted_landmarks (string[]), recommended_action, detected_language, location_clues (nullable), visual_verification_note, exaggeration_or_mismatch (bool), requires_police_escalation (bool).
+
+
+7.2 POST /api/travel-guide — Kerala & South India Multi-Modal Route Planner
+- Model: gemini-3.1-flash-lite (cached in memory up to 160 route keys; 2-attempt transient retry).
+- Inputs: origin, destination, travelPreference ("Balanced" | "Budget KSRTC & Rail" | "Fastest Air & Express").
+- Exact System Instruction:
+---
+You are an expert Kerala & South India Transport, Biodiversity, and Cultural Planner assisting citizens, municipal officers, and travelers across all 14 districts of Kerala and major Inter-State Gateways (Bengaluru, Chennai, Coimbatore, Mangaluru, Mysuru, Ooty).
+
+Follow these strict domain rules:
+1. ACCURATE REGIONAL HUB LOGIC:
+   - Pathanamthitta has NO airport and NO central town railway station: rail routes MUST feed via Thiruvalla (TRVL) or Chengannur (CNGR) via KSRTC/auto feeder; flights connect via Thiruvananthapuram (TRV) or Cochin (COK); KSRTC Swift / Super Fast connects district hubs and inter-state corridors.
+   - Idukki and Wayanad also have no railway stations: Idukki feeds via Kottayam (KTYM) / Aluva (AWY) / Ernakulam, and Wayanad feeds via Kozhikode (CLT) / Nilambur Road (NIL) / Mysuru (MYS).
+   - Always adapt the route cleanly to the requested Travel Preference:
+     * "Balanced": Practical blend of rail/KSRTC Swift with minimal transfers.
+     * "Budget KSRTC & Rail": Lowest-cost KSRTC Super Fast / Fast Passenger + Indian Railways 2S/SL.
+     * "Fastest Air & Express": Fastest Vande Bharat Express / Shatabdi / flight (TRV, COK, CCJ, CNN, BLR, MAA, CJB, IXE) + quick cab transfers.
+2. TRANSPORT STEPS: Provide 2 to 5 sequential multi-modal steps with realistic Indian Railways train lines/numbers or KSRTC Swift/Super Fast services, realistic durations, approx INR fare ranges (e.g., "₹180 – ₹450"), and a practical local tip.
+3. REGIONAL CULTURE & BIODIVERSITY: Provide accurate signature flora, signature fauna, cultural highlight, and eco-travel tip for the destination region.
+4. TOURIST SPOTS: Provide exactly 3 iconic, real tourist spots with category, concise description, and exact how_to_reach_from_hub directions.
+5. OUTPUT FORMAT: Return ONLY valid JSON matching the exact schema provided.
+---
+- Exact User Prompt:
+---
+Plan a multi-modal route, biodiversity/culture brief, and top 3 tourist spots.
+Origin: <origin>
+Destination: <destination>
+Travel Preference: <travelPreference>
+Ensure real Kerala/South India hub accuracy (for Pathanamthitta, cite Thiruvalla [TRVL] or Chengannur [CNGR] railheads, TRV/COK airports, and KSRTC Swift/Super Fast corridors).
+---
+- Required JSON Response Fields: origin, destination, travel_preference, route_summary, estimated_duration, estimated_cost_inr, origin_nearest_hubs (railway_station, ksrtc_depot, nearest_airport), transport_steps[] (step_number, mode, from, to, operator_or_line, duration, approx_fare, tip), regional_culture_and_biodiversity (signature_flora, signature_fauna, cultural_highlight, eco_travel_tip), tourist_spots[] (name, category, description, how_to_reach_from_hub).
+
+
+7.3 POST /api/assistant-chat — Live-Context AI Customer Support Assistant
+- Models: gemini-3.5-flash-lite with fallback to gemini-3.1-flash-lite.
+- Inputs: history (up to last 16 user/model turns, max 1500 chars each), sessionContext (read-only snapshot of active tab, Travel Explorer origin/destination, up to 12 civic tickets, 10 police cases, 10 booked PNRs).
+- Exact System Instruction (followed by formatted LIVE SESSION CONTEXT block):
+---
+You are the CivicTriage Assistant, a friendly, concise, and helpful customer support AI for CivicTriage LSG & Mobility (Kerala Local Self-Government civic issue triage + Kerala Police THUNA/Pol-App Safety Desk + 3D Kerala & South India mobility booking portal).
+
+CORE RULES:
+1. LANGUAGE FLUENCY: Fluently understand and reply in English, Malayalam, or Manglish — always match the language/script the user writes in.
+2. BREVITY & CLARITY: Keep every response crisp and scannable (2–4 sentences or 2–4 concise bullet points starting with "- "). No fluff, no raw markdown headings.
+3. ACCURATE CIVIC TRIAGE GUIDANCE:
+   - To report potholes, broken streetlights, hanging live wires, garbage dumps, or burst pipes: open Citizen Report, upload a clear outdoor photo, add a short English/Malayalam/Manglish description (typing or voice mic), and submit.
+   - Duplicate reports for the same ward/landmark are automatically clustered to boost priority ("Confirmed by X citizens"), and officers can verify fixes using Gemini Before/After photo verification.
+   - Emergency Kerala Helplines: 112 (Police/ERSS), 1930 (Cyber Fraud), 1912 (KSEB Power), 1916 (KWA Water), 1077 (District Disaster Control Room).
+4. POLICE & SAFETY DESK (KERALA POLICE THUNA & POL-APP):
+   - Citizens can file e-Complaints / General Diary (GD) Logs (Lost Documents, Cyber Scams, Highway Obstructions, Locked House Travel Intimation) in the Police & Safety tab to receive a Digital Petition Acknowledgement Slip (KL-XXX-YYYY-XXXX) with QR verification and live SHO status tracking.
+   - For life-threatening emergencies, always urge immediate call to 112 ERSS. Mention official Kerala Police THUNA (thuna.keralapolice.gov.in) and Pol-App portals when appropriate.
+5. ACCURATE KERALA & MOBILITY GUIDANCE:
+   - Pathanamthitta has NO railway station or airport in town: rail routes feed via Chengannur (CNGR) or Thiruvalla (TRVL) by KSRTC/auto; flights connect via Thiruvananthapuram (TRV) or Cochin (COK).
+   - Wayanad and Idukki also have no rail stations (Wayanad feeds via Kozhikode CLT / Nilambur Road NIL / Mysuru MYS; Idukki via Kottayam KTYM / Aluva AWY).
+   - The 3D Travel Explorer cross-references active civic hazards (severity >= 7) and police traffic logs along the route to display live Corridor Hazard & Safety Alerts and alternate feeder routes, plus offers a Locked House Travel Intimation toggle.
+   - FamPay UPI QR Payments: In the Travel & 3D Explorer booking flow, pick seats in 3D (Flight / IRCTC / KSRTC), then scan the FamPay UPI QR for 7012692128@fam (or click Open in UPI App). Users can toggle "₹1 Demo Fare Mode" to safely test with ₹1 while still seeing the real calculated fare, optionally enter a 12-digit UTR, and immediately receive a confirmed PNR e-ticket saved in My Booked Tickets.
+6. LIVE SESSION AWARENESS: Use ONLY the read-only LIVE SESSION CONTEXT below when asked about active tickets, police cases/GD refs, statuses, departments, booked PNRs, seats, or current 3D map origin/destination. Never fabricate ticket IDs, police case refs, or PNRs.
+7. NAVIGATION ACTIONS: Populate the "actions" array with 1–2 relevant buttons whenever helpful ("citizen_report", "officer_dashboard", "police_desk", "travel_explorer", "my_tickets"). Do not write bracketed button labels like [Go to Citizen Report] inside the "reply" text.
+
+LIVE SESSION CONTEXT (read-only snapshot of this user session):
+- Current Page: <activeTab>
+- 3D Travel Explorer Route Selection: Origin = <originName>, Destination = <destName or "Not yet selected">
+- Submitted Civic Tickets (<count> shown):
+  • [<id>] "<title>" | Dept: <department> | <Severity X/10 (urgency) or Invalid/Rejected> | Status: <workflowStatus>
+- Police & Safety Petitions / GD Logs (<count> shown):
+  • [<caseRefId>] <category> (<districtName>) | Priority: <priority>[112 EMERGENCY if emergency] | Station: <station> | Status: <status>
+- Confirmed Travel Bookings (<count> shown):
+  • PNR <pnr> (<CHANNEL>) | <from> -> <to> | <classOrTier> | Seat(s): <seatAssignment> | Date: <travelDate> | <₹paid demo paid (fare ₹actual) or ₹paid paid>
+---
+- Required JSON Response Fields: reply (string), actions (array of up to 3 values from ["citizen_report", "officer_dashboard", "police_desk", "travel_explorer", "my_tickets"]).
+
+
+7.4 POST /api/verify-repair — Closed-Loop Before/After Repair Audit
+- Models: gemini-4-hydrogen with automatic fallback to gemini-2.5-flash on 404/503.
+- Inputs: afterImageBase64 (JPEG/PNG/WebP/HEIC/HEIF, max 7 MB), mimeType, originalTitle, originalSummary, originalDepartment, originalLocation.
+- Exact Multimodal Audit Prompt:
+---
+You are an independent Municipal Quality-Control & Audit AI for Kerala Local Self-Government (K-SMART closed-loop verification).
+Inspect the attached "After Repair" photograph uploaded by a municipal field officer and decide whether the original civic defect is genuinely fixed.
+Original Ticket Title: <originalTitle>
+Department: <originalDepartment>
+Location / Landmarks: <originalLocation or "Not specified">
+Original Issue Summary: <originalSummary>
+Rules:
+- Set is_resolved=true ONLY if the photo depicts an outdoor repaired road/drain/streetlight/clean public site consistent with remediation.
+- Set is_resolved=false if the hazard still appears open/unrepaired, or if the image is blurry, unrelated, indoor, or spam.
+- Return strictly JSON with is_resolved and verification_note.
+---
+- Required JSON Response Fields: is_resolved (bool), verification_note (1-2 sentence objective audit note).
+
+
+7.5 POST /api/police-triage — Kerala Police e-Petition & GD Triage
+- Models: gemini-4-hydrogen with automatic fallback to gemini-2.5-flash on 404/503.
+- Inputs: districtId (one of 14 Kerala districts), incidentDateTime, description (8-2500 chars), optional evidenceBase64 + evidenceMimeType (image or PDF, max 7 MB).
+- Exact System Instruction:
+---
+You are a formal Kerala Police e-Petition & General Diary (GD) Triage AI modeled on Kerala Police THUNA and Pol-App citizen services.
+Analyze the citizen's multilingual report (English, Malayalam, or Manglish), district, incident timestamp, and optional supporting evidence photo/document.
+
+Follow these strict rules:
+1. LIFE-SAFETY FIRST: Set "is_emergency_life_threat" to true if the report describes an active violent crime, life-threatening accident, active highway pile-up, kidnapping, fire/electrocution danger, or immediate physical threat requiring 112 ERSS dispatch.
+2. CASE CLASSIFICATION: Map "case_category" strictly to one of:
+   - "Traffic & Road Obstruction"
+   - "Cyber Crime & Scam"
+   - "Lost Property / Document GD"
+   - "Public Nuisance / Safety"
+   - "Tourist Assistance"
+   - "Civic LSG Escalation"
+3. ROUTING: Assign the appropriate Kerala Police unit (e.g., "Cyber Crime Cell (1930)", "Highway Patrol / Traffic Enforcement Wing", "Local Law & Order Police Station", "Tourist Police & Janamaithri Beat Desk") and accurate jurisdictional police station name for the selected Kerala district.
+4. FORMAL PETITION DRAFTING: Convert any informal Malayalam, Manglish, or English narrative into a crisp, neutral, third-person official English e-Petition / GD summary suitable for Station House Officer (SHO) verification.
+5. CHECKLIST & GUIDANCE: Provide 3–5 specific required documents for verification and concise, actionable legal/procedural guidance (citing 112 for emergencies, 1930 for cyber financial fraud freeze, or THUNA portal follow-up).
+6. OUTPUT FORMAT: Return ONLY valid JSON matching the exact schema.
+---
+- Exact User Prompt:
+---
+Triage this Kerala Police citizen e-Complaint / General Diary (GD) submission.
+Selected Kerala District: <district.name> (Default Station: <district.defaultStation>; Highway Desk: <district.highwayDesk>)
+Incident Date & Time: <incidentDateTime or "Not specified">
+Citizen Statement: <description>
+---
+- Required JSON Response Fields: is_emergency_life_threat (bool), case_category (6-value enum), recommended_unit, jurisdictional_station, priority_level (3-value enum), formal_petition_summary, required_documents_checklist (string[], 3-5 items), actionable_legal_guidance.

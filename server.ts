@@ -46,7 +46,7 @@ const ALLOWED_POLICE_EVIDENCE_MIME_TYPES = new Set([
   'application/pdf',
 ]);
 
-const FLASH_MULTIMODAL_MODELS = ['gemini-2.5-flash', 'gemini-4-hydrogen'] as const;
+const FLASH_MULTIMODAL_MODELS = ['gemini-4-hydrogen', 'gemini-2.5-flash'] as const;
 
 const TRIAGE_SYSTEM_INSTRUCTION = `You are an expert Municipal Civic Issue Triage AI for local self-government bodies (municipalities and panchayats in Kerala, integrating with official portals such as K-SMART). Your job is to analyze a citizen's uploaded image and text description (which may be in English, Malayalam, or Manglish) and convert it into a structured, actionable municipal triage ticket.
 
@@ -632,8 +632,12 @@ async function runVerifyRepairWithRetry(
           break;
         }
         const isTransient = /503|500|UNAVAILABLE|DEADLINE_EXCEEDED|fetch failed/i.test(msg);
-        if (!isTransient || attempt === 1) {
+        if (!isTransient) {
           throw error;
+        }
+        if (attempt === 1) {
+          // Try next model fallback if this model is overloaded
+          break;
         }
         await new Promise((resolve) => setTimeout(resolve, 450));
       }
@@ -771,8 +775,12 @@ async function runPoliceTriageWithRetry(
           break;
         }
         const isTransient = /503|500|UNAVAILABLE|DEADLINE_EXCEEDED|fetch failed/i.test(msg);
-        if (!isTransient || attempt === 1) {
+        if (!isTransient) {
           throw error;
+        }
+        if (attempt === 1) {
+          // Try next model fallback if this model is overloaded
+          break;
         }
         await new Promise((resolve) => setTimeout(resolve, 450));
       }
