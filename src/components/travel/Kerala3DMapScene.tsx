@@ -17,17 +17,47 @@ import {
   type MapRegionNode,
 } from '../../shared/travelSchema';
 import type { CorridorHazardItem } from '../../shared/corridorHazardMatcher';
+import type { LiveAirspaceFlight, WorldCountryEntry } from '../../data/worldAtlasData';
+import {
+  WorldEarth3DGlobe,
+  type GlobeCoordPoint,
+} from './WorldEarth3DGlobe';
+import { IndiaTopographicReliefScene } from './IndiaTopographicReliefScene';
+import type { IndiaStateSpec } from '../../data/indiaStatesData';
 
-export type ExplorerViewMode = 'globe' | 'terrain';
+export type ExplorerViewMode = 'globe' | 'india' | 'state' | 'terrain';
+
+export interface RegionalLiveVehicle {
+  id: string;
+  channel: 'irctc' | 'ksrtc';
+  serviceCode: string;
+  name: string;
+  vehicleModel: string;
+  from: string;
+  to: string;
+  speedLabel: string;
+  fareInr: number;
+  accentHex: string;
+}
 
 export interface Kerala3DMapSceneProps {
   viewMode: ExplorerViewMode;
   originId: string;
   destinationId: string | null;
+  selectedIndiaStateId?: string;
   showBiodiversity: boolean;
   resetSignal: number;
   isSoftwareGl: boolean;
   districtHazardsMap?: Record<string, CorridorHazardItem[]>;
+  globeOriginPoint: GlobeCoordPoint;
+  globeDestinationPoint: GlobeCoordPoint | null;
+  globeFocusCoord: { lat: number; lon: number; token: number } | null;
+  selectedCountryIso: string | null;
+  onSelectWorldCountry: (country: WorldCountryEntry) => void;
+  onSelectIndiaState?: (state: IndiaStateSpec) => void;
+  onSelectIndiaDistrict?: (districtName: string, state: IndiaStateSpec) => void;
+  onSelectLiveFlight: (flight: LiveAirspaceFlight) => void;
+  onSelectRegionalVehicle: (vehicle: RegionalLiveVehicle) => void;
   onDiveToKerala: () => void;
   onSelectDestination: (region: MapRegionNode) => void;
   onContextLost: () => void;
@@ -55,6 +85,10 @@ const DEFAULT_GLOBE_TARGET = new THREE.Vector3(0, 0, 0);
 
 const DEFAULT_TERRAIN_CAMERA_POS = new THREE.Vector3(-2.8, 12.6, 13.8);
 const DEFAULT_TERRAIN_TARGET = new THREE.Vector3(0.4, 0.2, -0.5);
+const DEFAULT_INDIA_CAMERA_POS = new THREE.Vector3(0.4, 13.8, 11.4);
+const DEFAULT_INDIA_TARGET = new THREE.Vector3(0, 0.2, 0);
+const DEFAULT_STATE_CAMERA_POS = new THREE.Vector3(0.8, 10.6, 8.8);
+const DEFAULT_STATE_TARGET = new THREE.Vector3(0, 0.3, 0);
 
 interface ProjectedPinTarget {
   key: string;
@@ -1409,6 +1443,145 @@ function RouteTrajectoryArc({
   );
 }
 
+const REGIONAL_LIVE_VEHICLES: RegionalLiveVehicle[] = [
+  {
+    id: 'veh-vande-bharat',
+    channel: 'irctc',
+    serviceCode: '20632',
+    name: 'Vande Bharat Express (IRCTC)',
+    vehicleModel: 'Semi-High-Speed 16-Car Electric Trainset',
+    from: 'Thiruvananthapuram (TVC) via CNGR / KTYM',
+    to: 'Kasaragod (KGQ) via ERS / CLT',
+    speedLabel: '108 km/h · Live Rail Spine',
+    fareInr: 1240,
+    accentHex: '#0284c7',
+  },
+  {
+    id: 'veh-ksrtc-swift',
+    channel: 'ksrtc',
+    serviceCode: 'KS-SWF-04',
+    name: 'KSRTC Swift Gajaraj Multi-Axle',
+    vehicleModel: 'Volvo B11R A/C Sleeper / Seater',
+    from: 'Pathanamthitta KSRTC Hub',
+    to: 'Kalpetta / Wayanad & Bengaluru Corridor',
+    speedLabel: '74 km/h · MC Road / NH-66 Express',
+    fareInr: 540,
+    accentHex: '#ea580c',
+  },
+];
+
+/**
+ * Animated clickable 3D Vande Bharat Train & KSRTC Swift Bus moving smoothly across Kerala terrain.
+ */
+function RegionalAnimatedVehicles({
+  isSoftwareGl,
+  onSelectVehicle,
+}: {
+  isSoftwareGl: boolean;
+  onSelectVehicle: (vehicle: RegionalLiveVehicle) => void;
+}) {
+  const trainRef = useRef<THREE.Group>(null);
+  const busRef = useRef<THREE.Group>(null);
+
+  const { trainCurve, busCurve } = useMemo(() => {
+    const tCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.42, 0.58, 4.9),
+      new THREE.Vector3(-0.08, 0.56, 3.2),
+      new THREE.Vector3(-0.62, 0.54, 1.4),
+      new THREE.Vector3(-1.02, 0.56, -0.5),
+      new THREE.Vector3(-1.45, 0.58, -2.5),
+      new THREE.Vector3(-2.0, 0.58, -4.5),
+    ]);
+    const bCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.28, 0.66, 2.75),
+      new THREE.Vector3(-0.05, 0.66, 1.55),
+      new THREE.Vector3(-0.35, 0.68, 0.25),
+      new THREE.Vector3(-0.55, 0.72, -1.25),
+      new THREE.Vector3(-0.68, 0.92, -2.65),
+    ]);
+    return { trainCurve: tCurve, busCurve: bCurve };
+  }, []);
+
+  useFrame((state) => {
+    const t1 = isSoftwareGl ? 0.35 : (state.clock.elapsedTime * 0.085) % 1;
+    const t2 = isSoftwareGl ? 0.62 : (state.clock.elapsedTime * 0.07 + 0.4) % 1;
+
+    if (trainRef.current) {
+      const p = trainCurve.getPointAt(t1);
+      const next = trainCurve.getPointAt(Math.min(0.999, t1 + 0.02));
+      trainRef.current.position.copy(p);
+      trainRef.current.lookAt(next);
+    }
+    if (busRef.current) {
+      const p = busCurve.getPointAt(t2);
+      const next = busCurve.getPointAt(Math.min(0.999, t2 + 0.02));
+      busRef.current.position.copy(p);
+      busRef.current.lookAt(next);
+    }
+  });
+
+  return (
+    <group>
+      {/* 3D Vande Bharat Express Train */}
+      <group
+        ref={trainRef}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = 'auto';
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectVehicle(REGIONAL_LIVE_VEHICLES[0]);
+        }}
+      >
+        <mesh>
+          <boxGeometry args={[0.14, 0.12, 0.56]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.3} metalness={0.2} />
+        </mesh>
+        <mesh position={[0, 0.01, 0]}>
+          <boxGeometry args={[0.148, 0.036, 0.52]} />
+          <meshStandardMaterial color="#0284c7" emissive="#0284c7" emissiveIntensity={0.65} />
+        </mesh>
+        {/* Nose beacon */}
+        <mesh position={[0, 0.03, 0.3]}>
+          <sphereGeometry args={[0.045, 10, 10]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={1.2} />
+        </mesh>
+      </group>
+
+      {/* 3D KSRTC Swift Coach */}
+      <group
+        ref={busRef}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = 'auto';
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectVehicle(REGIONAL_LIVE_VEHICLES[1]);
+        }}
+      >
+        <mesh>
+          <boxGeometry args={[0.15, 0.13, 0.36]} />
+          <meshStandardMaterial color="#ea580c" emissive="#c2410c" emissiveIntensity={0.35} />
+        </mesh>
+        <mesh position={[0, 0.03, 0]}>
+          <boxGeometry args={[0.156, 0.045, 0.3]} />
+          <meshStandardMaterial color="#fef08a" roughness={0.3} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 function OverlayProjector({
   targets,
   domRefs,
@@ -1457,11 +1630,13 @@ function OverlayProjector({
 function CameraController({
   viewMode,
   destination,
+  globeFocusCoord,
   resetSignal,
   isSoftwareGl,
 }: {
   viewMode: ExplorerViewMode;
   destination: MapRegionNode | undefined;
+  globeFocusCoord: { lat: number; lon: number; token: number } | null;
   resetSignal: number;
   isSoftwareGl: boolean;
 }) {
@@ -1473,6 +1648,19 @@ function CameraController({
   const prevResetRef = useRef(resetSignal);
   const prevViewModeRef = useRef<ExplorerViewMode>(viewMode);
   const prevDestIdRef = useRef<string | null>(destination?.id ?? null);
+  const prevGlobeTokenRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (viewMode === 'globe' && globeFocusCoord && globeFocusCoord.token !== prevGlobeTokenRef.current) {
+      prevGlobeTokenRef.current = globeFocusCoord.token;
+      const pt = latLonToSpherePoint(globeFocusCoord.lat, globeFocusCoord.lon, 1);
+      const normal = new THREE.Vector3(pt.x, pt.y, pt.z).normalize();
+      goalPosRef.current.copy(normal.multiplyScalar(11.8));
+      goalTargetRef.current.set(0, 0, 0);
+      isAnimatingRef.current = true;
+      invalidate();
+    }
+  }, [viewMode, globeFocusCoord, invalidate]);
 
   useEffect(() => {
     if (viewMode !== prevViewModeRef.current) {
@@ -1498,6 +1686,12 @@ function CameraController({
           goalPosRef.current.copy(DEFAULT_TERRAIN_CAMERA_POS);
           goalTargetRef.current.copy(DEFAULT_TERRAIN_TARGET);
         }
+      } else if (viewMode === 'india') {
+        goalPosRef.current.copy(DEFAULT_INDIA_CAMERA_POS);
+        goalTargetRef.current.copy(DEFAULT_INDIA_TARGET);
+      } else if (viewMode === 'state') {
+        goalPosRef.current.copy(DEFAULT_STATE_CAMERA_POS);
+        goalTargetRef.current.copy(DEFAULT_STATE_TARGET);
       } else {
         goalPosRef.current.copy(DEFAULT_GLOBE_CAMERA_POS);
         goalTargetRef.current.copy(DEFAULT_GLOBE_TARGET);
@@ -1534,6 +1728,12 @@ function CameraController({
       if (viewMode === 'globe') {
         goalPosRef.current.copy(DEFAULT_GLOBE_CAMERA_POS);
         goalTargetRef.current.copy(DEFAULT_GLOBE_TARGET);
+      } else if (viewMode === 'india') {
+        goalPosRef.current.copy(DEFAULT_INDIA_CAMERA_POS);
+        goalTargetRef.current.copy(DEFAULT_INDIA_TARGET);
+      } else if (viewMode === 'state') {
+        goalPosRef.current.copy(DEFAULT_STATE_CAMERA_POS);
+        goalTargetRef.current.copy(DEFAULT_STATE_TARGET);
       } else {
         goalPosRef.current.copy(DEFAULT_TERRAIN_CAMERA_POS);
         goalTargetRef.current.copy(DEFAULT_TERRAIN_TARGET);
@@ -1584,10 +1784,10 @@ function CameraController({
       ]}
       enableDamping
       dampingFactor={0.07}
-      minDistance={viewMode === 'globe' ? 6.2 : 5.5}
+      minDistance={viewMode === 'globe' ? 6.0 : 5.5}
       maxDistance={viewMode === 'globe' ? 19 : 26}
-      minPolarAngle={viewMode === 'globe' ? 0.35 : 0.22}
-      maxPolarAngle={viewMode === 'globe' ? Math.PI - 0.35 : Math.PI / 2.18}
+      minPolarAngle={viewMode === 'globe' ? 0.25 : 0.22}
+      maxPolarAngle={viewMode === 'globe' ? Math.PI - 0.25 : Math.PI / 2.18}
       onStart={() => {
         isAnimatingRef.current = false;
       }}
@@ -1602,16 +1802,26 @@ export function Kerala3DMapScene({
   viewMode,
   originId,
   destinationId,
+  selectedIndiaStateId = 'kerala',
   showBiodiversity,
   resetSignal,
   isSoftwareGl,
   districtHazardsMap,
+  globeOriginPoint,
+  globeDestinationPoint,
+  globeFocusCoord,
+  selectedCountryIso,
+  onSelectWorldCountry,
+  onSelectIndiaState,
+  onSelectIndiaDistrict,
+  onSelectLiveFlight,
+  onSelectRegionalVehicle,
   onDiveToKerala,
   onSelectDestination,
   onContextLost,
 }: Kerala3DMapSceneProps) {
   const [hoveredRegion, setHoveredRegion] = useState<MapRegionNode | null>(null);
-  const [hoveredIndia, setHoveredIndia] = useState(false);
+  const [globeHoverLabel, setGlobeHoverLabel] = useState<string | null>(null);
   const labelDomRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const isUnmountingRef = useRef(false);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
@@ -1657,6 +1867,9 @@ export function Kerala3DMapScene({
   );
 
   const pinTargets = useMemo<ProjectedPinTarget[]>(() => {
+    if (viewMode === 'india' || viewMode === 'state') {
+      return [];
+    }
     if (viewMode === 'globe') {
       return [
         {
@@ -1772,22 +1985,20 @@ export function Kerala3DMapScene({
         }}
         className="w-full h-full block"
       >
-        <color attach="background" args={[viewMode === 'globe' ? '#08203e' : '#cbeafe']} />
-        <fog
-          attach="fog"
-          args={[viewMode === 'globe' ? '#08203e' : '#dbeafe', 24, 56]}
-        />
-
-        <StudioEnvironment isSoftwareGl={isSoftwareGl} />
-
-        {viewMode === 'globe' ? (
+        {viewMode === 'globe' && (
           <>
-            <hemisphereLight args={['#e0f2fe', '#0c4a6e', 1.1]} />
-            <directionalLight position={[12, 10, 14]} intensity={2.1} color="#fffbeb" />
-            <directionalLight position={[-10, -4, -10]} intensity={0.55} color="#38bdf8" />
+            <color attach="background" args={['#040b18']} />
+            <fog attach="fog" args={['#040b18', 24, 58]} />
+            <hemisphereLight args={['#e0f2fe', '#020617', 0.95]} />
+            <directionalLight position={[14, 10, 14]} intensity={2.25} color="#fffbeb" />
+            <directionalLight position={[-12, -4, -10]} intensity={0.42} color="#38bdf8" />
           </>
-        ) : (
+        )}
+
+        {viewMode === 'terrain' && (
           <>
+            <color attach="background" args={['#cbeafe']} />
+            <fog attach="fog" args={['#dbeafe', 24, 58]} />
             <hemisphereLight args={['#e0f2fe', '#bbf7d0', 1.2]} />
             <directionalLight
               position={[12, 18, 12]}
@@ -1802,11 +2013,30 @@ export function Kerala3DMapScene({
           </>
         )}
 
+        <StudioEnvironment isSoftwareGl={isSoftwareGl} />
+
         {viewMode === 'globe' ? (
-          <OrbitalGlobeView
+          <WorldEarth3DGlobe
             isSoftwareGl={isSoftwareGl}
+            originPoint={globeOriginPoint}
+            destinationPoint={globeDestinationPoint}
+            selectedCountryIso={selectedCountryIso}
+            onSelectCountry={onSelectWorldCountry}
             onDiveToKerala={onDiveToKerala}
-            onHoverIndia={setHoveredIndia}
+            onHoverLabelChange={setGlobeHoverLabel}
+            onSelectLiveFlight={onSelectLiveFlight}
+          />
+        ) : viewMode === 'india' || viewMode === 'state' ? (
+          <IndiaTopographicReliefScene
+            mode={viewMode}
+            selectedStateId={selectedIndiaStateId}
+            isSoftwareGl={isSoftwareGl}
+            activeHazardCountByState={{
+              kerala: hazardDistrictEntries.reduce((acc, h) => acc + h.count, 0),
+            }}
+            onSelectState={(st) => onSelectIndiaState?.(st)}
+            onSelectDistrictName={(distName, st) => onSelectIndiaDistrict?.(distName, st)}
+            onSelectRegionalVehicle={onSelectRegionalVehicle}
           />
         ) : (
           <>
@@ -1862,6 +2092,12 @@ export function Kerala3DMapScene({
               />
             ))}
 
+            {/* Animated Clickable 3D Vande Bharat Train & KSRTC Swift Bus */}
+            <RegionalAnimatedVehicles
+              isSoftwareGl={isSoftwareGl}
+              onSelectVehicle={onSelectRegionalVehicle}
+            />
+
             {/* Glowing 3D Route Trajectory Arc */}
             {originNode && destinationNode && originNode.id !== destinationNode.id && (
               <RouteTrajectoryArc
@@ -1878,6 +2114,7 @@ export function Kerala3DMapScene({
         <CameraController
           viewMode={viewMode}
           destination={destinationNode}
+          globeFocusCoord={globeFocusCoord}
           resetSignal={resetSignal}
           isSoftwareGl={isSoftwareGl}
         />
@@ -1893,16 +2130,16 @@ export function Kerala3DMapScene({
             style={{ opacity: 0, willChange: 'transform, opacity' }}
             className="absolute top-0 left-0 whitespace-nowrap"
           >
-            <div
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold shadow-lg transition-colors ${
-                hoveredIndia
-                  ? 'bg-amber-400 border-amber-200 text-slate-950'
-                  : 'bg-white/95 border-amber-300 text-slate-900'
-              }`}
-            >
+            <div className="px-3 py-1.5 rounded-full border border-white/80 bg-white/90 text-[#111315] text-xs font-bold shadow-lg">
               <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle" />
               India &amp; Kerala · Click to Dive
             </div>
+          </div>
+        )}
+
+        {viewMode === 'globe' && globeHoverLabel && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-[#111315]/90 border border-white/20 text-white text-xs font-semibold shadow-xl whitespace-nowrap">
+            {globeHoverLabel}
           </div>
         )}
 

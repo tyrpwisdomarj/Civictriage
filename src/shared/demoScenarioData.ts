@@ -1,6 +1,16 @@
 import type { StoredTicket } from './triageSchema';
 import type { StoredPoliceCase } from './policeSchema';
 import { getTomorrowIsoDate, UPI_MERCHANT_VPA, type BookedETicket } from './bookingSchema';
+import {
+  DEFAULT_ONSPOT_FOOD_CATALOG,
+  type AdmissionApplicationRecord,
+  type EventPlanData,
+  type ExpenseEntry,
+  type JobApplicationRecord,
+  type OnSpotFoodOrder,
+  type StudyPlanData,
+  type WeekendItineraryData,
+} from '../data/localLifeData';
 
 export interface DemoScenarioBundle {
   tickets: StoredTicket[];
@@ -8,6 +18,13 @@ export interface DemoScenarioBundle {
   bookedTickets: BookedETicket[];
   travelOriginId: string;
   travelDestinationId: string;
+  demoStudyPlan: StudyPlanData;
+  demoAdmissionApplications: AdmissionApplicationRecord[];
+  demoWeekendItinerary: WeekendItineraryData;
+  demoExpenses: ExpenseEntry[];
+  demoJobApplications: JobApplicationRecord[];
+  demoEventPlan: EventPlanData;
+  demoFoodOrders: OnSpotFoodOrder[];
 }
 
 /**
@@ -264,6 +281,430 @@ export function buildDemoScenarioBundle(): DemoScenarioBundle {
       issuedAt: nowIso,
       status: 'CONFIRMED',
     },
+    {
+      id: 'tkt-demo-2',
+      pnr: 'EK9472',
+      bookingRef: 'KSM883410',
+      channel: 'flight',
+      from: 'Kochi (COK) — Pathanamthitta Airport Gateway',
+      to: 'Dubai International (DXB), UAE',
+      operatorOrLine: 'Emirates EK-531 · Boeing 777-300ER',
+      classOrTier: 'Business',
+      seatAssignment: '3A Window Suite',
+      travelDate: tomorrow,
+      passengerName: 'Arjit Anil',
+      passengerAge: 26,
+      passengerCount: 1,
+      actualFareInr: 42800,
+      paidAmountInr: 1,
+      isDemoFare: true,
+      utrNumber: '632919504812',
+      upiVpa: UPI_MERCHANT_VPA,
+      issuedAt: nowIso,
+      status: 'CONFIRMED',
+      airlineCode: 'EK',
+      airlineName: 'Emirates',
+      airlineAccentHex: '#D71921',
+      aircraftModel: 'Boeing 777-300ER',
+      isWideBody: true,
+    },
+    {
+      id: 'tkt-demo-3',
+      pnr: 'KS551829',
+      bookingRef: 'KSM319044',
+      channel: 'ksrtc',
+      from: 'Pathanamthitta KSRTC Stand',
+      to: 'Chengannur Railway Station (CNGR)',
+      operatorOrLine: 'KSRTC Fast Passenger — Local Rail Feeder Pass',
+      classOrTier: 'Fast Passenger',
+      seatAssignment: 'Feeder Day Pass · Open Boarding',
+      travelDate: tomorrow,
+      passengerName: 'Arjit Anil',
+      passengerAge: 26,
+      passengerCount: 1,
+      actualFareInr: 42,
+      paidAmountInr: 1,
+      isDemoFare: true,
+      utrNumber: '632918991204',
+      upiVpa: UPI_MERCHANT_VPA,
+      issuedAt: nowIso,
+      status: 'CONFIRMED',
+    },
+  ];
+
+  const demoStudyPlan: StudyPlanData = {
+    id: 'demo-study-keam-2027',
+    targetExam: 'KEAM / JEE Engineering',
+    dailyHours: 4,
+    targetDate: '2027-04-20',
+    milestoneSummary:
+      'High-yield 7-day KEAM & JEE PCM cycle balancing Calculus, Electromagnetism, and daily 25-question timed accuracy drills.',
+    subjectWeights: [
+      { subject: 'Mathematics (Calculus & Vectors)', percent: 42, color: '#4F5BD5' },
+      { subject: 'Physics (Mechanics & EM)', percent: 33, color: '#0ea5e9' },
+      { subject: 'Chemistry (Organic & Physical)', percent: 25, color: '#10b981' },
+    ],
+    days: [
+      {
+        day: 'Monday',
+        focusTheme: 'Definite Integrals & Kinematics Sprint',
+        tasks: [
+          {
+            id: 'dm-1',
+            title: 'Solve 30 KEAM Calculus previous-year questions',
+            durationMins: 90,
+            subject: 'Mathematics',
+            done: true,
+          },
+          {
+            id: 'dm-2',
+            title: 'Electrostatics Gauss Law derivations & numericals',
+            durationMins: 75,
+            subject: 'Physics',
+            done: true,
+          },
+          {
+            id: 'dm-3',
+            title: 'Organic reaction mechanism flashcards (30 mins)',
+            durationMins: 30,
+            subject: 'Chemistry',
+            done: false,
+          },
+        ],
+      },
+      {
+        day: 'Tuesday',
+        focusTheme: 'Matrices, Determinants & Current Electricity',
+        tasks: [
+          {
+            id: 'dt-1',
+            title: 'Matrices shortcut tricks + 25 timed MCQs',
+            durationMins: 85,
+            subject: 'Mathematics',
+            done: false,
+          },
+          {
+            id: 'dt-2',
+            title: 'Kirchhoff & RC circuit problem sheet',
+            durationMins: 80,
+            subject: 'Physics',
+            done: false,
+          },
+          {
+            id: 'dt-3',
+            title: 'Chemical Kinetics rate-law revision',
+            durationMins: 45,
+            subject: 'Chemistry',
+            done: false,
+          },
+        ],
+      },
+      {
+        day: 'Wednesday',
+        focusTheme: '3D Geometry & Optics Mastery',
+        tasks: [
+          {
+            id: 'dw-1',
+            title: 'Vector Algebra & 3D Line-Plane intersections',
+            durationMins: 90,
+            subject: 'Mathematics',
+            done: false,
+          },
+          {
+            id: 'dw-2',
+            title: 'Ray & Wave Optics YDSE numericals',
+            durationMins: 75,
+            subject: 'Physics',
+            done: false,
+          },
+          {
+            id: 'dw-3',
+            title: 'Coordination Compounds isomerism chart',
+            durationMins: 45,
+            subject: 'Chemistry',
+            done: false,
+          },
+        ],
+      },
+      {
+        day: 'Thursday',
+        focusTheme: 'Probability & Modern Physics',
+        tasks: [
+          {
+            id: 'dth-1',
+            title: 'Bayes Theorem & Binomial Distribution drills',
+            durationMins: 80,
+            subject: 'Mathematics',
+            done: false,
+          },
+          {
+            id: 'dth-2',
+            title: 'Photoelectric Effect & Nuclear Physics PYQs',
+            durationMins: 75,
+            subject: 'Physics',
+            done: false,
+          },
+          {
+            id: 'dth-3',
+            title: 'Error log review from Mon–Wed practice sets',
+            durationMins: 40,
+            subject: 'Revision',
+            done: false,
+          },
+        ],
+      },
+    ],
+    createdAt: nowIso,
+  };
+
+  const demoAdmissionApplications: AdmissionApplicationRecord[] = [
+    {
+      receiptId: 'ADM-PTA-84219',
+      institutionId: 'edu-cea-adoor',
+      institutionName: 'College of Engineering Adoor (IHRD)',
+      districtName: 'Pathanamthitta',
+      level: 'Engineering & Arts Colleges',
+      applicantName: 'Arjit Anil',
+      email: 'arjit.student@keralaedu.in',
+      phone: '+91 98470 21845',
+      stream: 'B.Tech Computer Science & Engineering (KTU)',
+      districtState: 'Pathanamthitta, Kerala',
+      qualification: 'Class 12 CBSE — 94.6% · KEAM Qualified',
+      documentsChecklist: [
+        'Class 10 & Plus Two Marksheet (DigiLocker Verified)',
+        'KEAM Engineering Rank Card & Allotment Memo',
+        'Aadhaar & Kerala Nativity Certificate',
+        'Signed Statement of Purpose (SOP)',
+      ],
+      sopText:
+        'I am applying to College of Engineering Adoor (IHRD) to pursue B.Tech in Computer Science & Engineering. Growing up in Pathanamthitta, I have built civic-tech web tools and AI prototypes and look forward to collaborating with the campus IEEE and TinkerHub chapters.',
+      submittedAt: new Date().toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+      status: 'SUBMITTED · AUTO-VERIFIED',
+    },
+  ];
+
+  const demoWeekendItinerary: WeekendItineraryData = {
+    id: 'demo-weekend-pta',
+    districtName: 'Pathanamthitta',
+    duration: 'Full Weekend (Sat–Sun)',
+    vibe: 'Heritage & Temple/Culture Trail',
+    groupSize: 3,
+    budgetInr: 3600,
+    headline: 'Pathanamthitta Heritage, Aranmula Craft & Roastery Weekend (3 pax)',
+    weatherTip: 'Cool Western Ghats mist till 9:30 AM; light rain possible post-5 PM.',
+    packingTips: ['Reusable bottle', 'Light umbrella', 'UPI QR ready', 'Walking sneakers'],
+    saturday: [
+      {
+        id: 'dsat-1',
+        time: '09:00 AM',
+        block: 'Morning',
+        title: 'Wayanad Pour-Over & Artisan Breakfast',
+        location: 'Western Ghats Roast & Bakehouse, Pathanamthitta',
+        distanceFromPrev: 'Start Point',
+        travelTimeFromPrev: '0 mins',
+        estimatedCostInr: 620,
+        category: 'Food & Cafes',
+        tip: 'Try the cardamom tres leches with single-estate filter brew.',
+        wikiQuery: 'Pathanamthitta',
+        done: true,
+      },
+      {
+        id: 'dsat-2',
+        time: '11:00 AM',
+        title: 'Aranmula Kannadi Metal Mirror Guild & Kasavu Loom Walk',
+        location: 'Aranmula Heritage Village, Pamba Riverbank',
+        estimatedCostInr: 450,
+        category: 'Turf & Lifestyle',
+        tip: 'Meet GI-certified bell-metal artisans near Parthasarathy Temple.',
+        done: false,
+      },
+      {
+        id: 'dsat-3',
+        time: '01:30 PM',
+        title: '28-Course Aranmula Valla Sadhya Feast',
+        location: 'Aranmula Valla Sadhya Heritage Kitchen',
+        estimatedCostInr: 720,
+        category: 'Food & Cafes',
+        tip: 'Save room for Palpayasam and crisp sharkara varatti.',
+        done: false,
+      },
+    ],
+    sunday: [
+      {
+        id: 'dsun-1',
+        time: '07:30 AM',
+        title: 'Gavi / Konni Eco-Forest Morning Drive & KSRTC Feeder',
+        location: 'Konni Elephant Camp & Adavi Bowl Boating',
+        estimatedCostInr: 950,
+        category: 'Local Transport & Fuel',
+        tip: 'Morning coracle boat rides open at 8:30 AM with misty river views.',
+        done: false,
+      },
+      {
+        id: 'dsun-2',
+        time: '06:30 PM',
+        title: 'Evening 7s Football Turf & Chengannur Shawarma Finale',
+        location: 'Pamba Arena Turf & Chengannur Station Road',
+        estimatedCostInr: 860,
+        category: 'Turf & Lifestyle',
+        tip: 'Split turf booking via UPI and grab rumali shawarma on the way back.',
+        done: false,
+      },
+    ],
+    createdAt: nowIso,
+  };
+
+  const todayLabel = new Date().toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  const demoExpenses: ExpenseEntry[] = [
+    {
+      id: 'exp-demo-1',
+      title: 'IRCTC Parasuram Express (CNGR → CLT · 3A)',
+      category: 'Travel Tickets',
+      amountInr: 685,
+      date: todayLabel,
+      source: 'Auto-Booked',
+      note: 'PNR 4829104756 · Auto-logged from 3D Booking Desk',
+    },
+    {
+      id: 'exp-demo-2',
+      title: 'Aranmula Valla Sadhya Heritage Kitchen (for two)',
+      category: 'Food & Cafes',
+      amountInr: 480,
+      date: todayLabel,
+      source: 'Weekend Plan',
+      note: 'Aranmula · 28-Course Plantain Leaf Sadhya',
+    },
+    {
+      id: 'exp-demo-3',
+      title: 'KSRTC Pathanamthitta → Chengannur (CNGR) Rail Feeder',
+      category: 'Local Transport & Fuel',
+      amountInr: 42,
+      date: todayLabel,
+      source: 'Auto-Booked',
+      note: 'Feeder Day Pass · PNR KS551829',
+    },
+    {
+      id: 'exp-demo-4',
+      title: 'Pamba Arena 7s Football Turf Split & KEAM Practice Book',
+      category: 'Turf & Lifestyle',
+      amountInr: 650,
+      date: todayLabel,
+      source: 'Manual',
+      note: 'Pathanamthitta Ring Road · Evening slot',
+    },
+  ];
+
+  const demoJobApplications: JobApplicationRecord[] = [
+    {
+      applicationId: 'JOB-PTA-62841',
+      jobId: 'job-kdisc-stride-pta',
+      jobTitle: 'K-DISC STRIDE Civic Innovation Fellow',
+      employer: 'K-DISC & Pathanamthitta District Innovation Council',
+      district: 'Pathanamthitta',
+      salaryLabel: '₹25,000 / month fellowship',
+      applicantName: 'Arjit Anil',
+      email: 'arjit.career@keralamail.in',
+      phone: '+91 98470 21845',
+      qualification: 'B.Tech Computer Science & Engineering · Kerala DWMS Verified',
+      skills: 'GIS / Mapping, TypeScript, React, Civic Tech, English & Malayalam',
+      coverNote:
+        'Applying for the K-DISC STRIDE Civic Innovation Fellowship in Pathanamthitta. I have built civic triage, K-SMART reporting, and regional 3D mapping prototypes ready for LSG field pilots.',
+      submittedAt: todayLabel,
+      status: 'APPLIED · PROFILE VERIFIED',
+    },
+  ];
+
+  const demoEventPlan: EventPlanData = {
+    id: 'evt-demo-turf',
+    eventType: 'Turf Match Refreshments',
+    guestCount: 10,
+    spotLocation: 'Thiruvalla 7s Turf Arena',
+    districtName: 'Pathanamthitta',
+    totalBudgetInr: 2560,
+    perPersonSplitInr: 256,
+    headline: 'Thiruvalla 7s Turf Night Match & Charcoal Shawarma Crew Meetup (10 Pax)',
+    summary:
+      '2-hour floodlit turf kickoff with chilled hydration crates at half-time and hot rumali shawarma platters + Wayanad cold brew delivered right to the arena gate.',
+    timeline: [
+      {
+        time: '06:30 PM',
+        title: 'Warmup & Half-Time Hydration Drop',
+        ownerNote: 'Confirm gate pin with EV rider for electrolyte & tender coconut crate.',
+      },
+      {
+        time: '07:45 PM',
+        title: 'Full-Time Shawarma Platter & Cold Brew Delivery',
+        ownerNote: '2× Charcoal Rumali Shawarma Crew Platters arrive hot at Dugout Bench.',
+      },
+      {
+        time: '08:30 PM',
+        title: 'Group Photo & UPI Cost Split Wrap-Up',
+        ownerNote: 'Auto-logged to CivicTriage Expense Tracker (₹256/player).',
+      },
+    ],
+    checklist: [
+      {
+        id: 'evc-1',
+        task: 'Confirm 7s Turf floodlight slot & bibs',
+        phase: 'Before Arrival',
+        done: true,
+      },
+      {
+        id: 'evc-2',
+        task: 'Share Google Maps drop-off pin with catering rider',
+        phase: 'Venue Setup',
+        done: true,
+      },
+      {
+        id: 'evc-3',
+        task: 'Verify UPI receipt & chilled hydration pack on arrival',
+        phase: 'On-Spot Delivery',
+        done: false,
+      },
+    ],
+    cateringMenu: DEFAULT_ONSPOT_FOOD_CATALOG,
+    createdAt: nowIso,
+  };
+
+  const demoFoodOrders: OnSpotFoodOrder[] = [
+    {
+      orderId: 'FD-PTA-41902',
+      eventHeadline: 'Thiruvalla 7s Turf Night Match & Shawarma Crew Meetup',
+      spotLocation: 'Thiruvalla 7s Turf Arena',
+      districtName: 'Pathanamthitta',
+      items: [
+        {
+          id: 'cat-shawarma-platter',
+          name: 'Charcoal Rumali Shawarma Crew Platter (6 Rolls + Toum)',
+          vendor: 'Chengannur / Thiruvalla Charcoal Grill',
+          qty: 2,
+          unitPriceInr: 720,
+        },
+        {
+          id: 'cat-hydration-pack',
+          name: 'Turf Match Electrolyte, Tender Coconut & Chilled Water Pack (12 Pack)',
+          vendor: 'Local Quick-Mart & Turf Hydration Express',
+          qty: 1,
+          unitPriceInr: 360,
+        },
+      ],
+      totalInr: 1800,
+      paidInr: 1,
+      isDemoFare: true,
+      utrNumber: '432988104721',
+      stage: 'Rider En Route to Pin',
+      riderName: 'Akhil S. (EV Scooter)',
+      etaMinutes: 14,
+      createdAt: '07:12 PM',
+    },
   ];
 
   return {
@@ -272,5 +713,12 @@ export function buildDemoScenarioBundle(): DemoScenarioBundle {
     bookedTickets,
     travelOriginId: 'pathanamthitta',
     travelDestinationId: 'wayanad',
+    demoStudyPlan,
+    demoAdmissionApplications,
+    demoWeekendItinerary,
+    demoExpenses,
+    demoJobApplications,
+    demoEventPlan,
+    demoFoodOrders,
   };
 }

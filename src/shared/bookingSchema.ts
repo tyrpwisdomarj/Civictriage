@@ -1,6 +1,6 @@
 export type BookingChannel = 'flight' | 'irctc' | 'ksrtc';
 
-export type FlightCabinClass = 'Economy' | 'Premium Economy' | 'Business';
+export type FlightCabinClass = 'Economy' | 'Premium Economy' | 'Business' | 'First Class';
 
 export type IrctcRailClass = '2S' | 'SL' | '3A' | '2A' | 'CC / Vande Bharat EC';
 
@@ -18,7 +18,7 @@ export const FLIGHT_CABIN_CLASSES: readonly {
   multiplier: number;
   baseAdd: number;
 }[] = [
-  { code: 'Economy', label: 'Standard 3-3 Cabin · 15 kg check-in', multiplier: 1.0, baseAdd: 0 },
+  { code: 'Economy', label: 'Standard Cabin · 15–30 kg check-in', multiplier: 1.0, baseAdd: 0 },
   {
     code: 'Premium Economy',
     label: 'Extra legroom & priority boarding',
@@ -27,9 +27,15 @@ export const FLIGHT_CABIN_CLASSES: readonly {
   },
   {
     code: 'Business',
-    label: 'Front cabin lounge & complimentary meal',
+    label: 'Lie-flat pods, lounge & fine dining',
     multiplier: 2.35,
     baseAdd: 1850,
+  },
+  {
+    code: 'First Class',
+    label: 'Private 1-2-1 Suites, chauffeur & flagship lounge',
+    multiplier: 3.6,
+    baseAdd: 4200,
   },
 ] as const;
 
@@ -84,6 +90,11 @@ export interface BookingDraft {
   from: string;
   to: string;
   operatorOrLine: string;
+  airlineCode?: string;
+  airlineName?: string;
+  airlineAccentHex?: string;
+  aircraftModel?: string;
+  isWideBody?: boolean;
   flightClass?: FlightCabinClass;
   railClass: IrctcRailClass;
   busTier: KsrtcBusTier;
@@ -105,6 +116,11 @@ export interface BookedETicket {
   from: string;
   to: string;
   operatorOrLine: string;
+  airlineCode?: string;
+  airlineName?: string;
+  airlineAccentHex?: string;
+  aircraftModel?: string;
+  isWideBody?: boolean;
   classOrTier: string;
   seatAssignment: string;
   travelDate: string;
@@ -180,14 +196,15 @@ export function generateBookingRef(): string {
   return `KSM${randomPart}`;
 }
 
-export function generatePnr(channel: BookingChannel): string {
+export function generatePnr(channel: BookingChannel, airlineCode?: string): string {
   if (channel === 'flight') {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let suffix = '';
     for (let i = 0; i < 4; i++) {
       suffix += chars[Math.floor(Math.random() * chars.length)];
     }
-    return `AI${suffix}`;
+    const prefix = (airlineCode || 'AI').replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 2) || 'AI';
+    return `${prefix}${suffix}`;
   }
   if (channel === 'irctc') {
     const num = Math.floor(4100000000 + Math.random() * 4800000000);

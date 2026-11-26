@@ -5,6 +5,7 @@ import {
   ArrowRight,
   ArrowRightLeft,
   Bus,
+  Camera,
   Car,
   CheckCircle2,
   Clock,
@@ -26,22 +27,28 @@ import {
   Ticket,
   TrainFront,
 } from 'lucide-react';
+import { LiquidGlassCard } from '../LiquidGlassCard';
+import type { SpotGalleryRequest } from '../SpotPictureLibraryDrawer';
 import { ROUTE_PRESETS } from '../../data/keralaMapData';
 import {
   TRAVEL_PREFERENCES,
   isBookableStepMode,
+  type CarrierFlightOption,
   type MapRegionNode,
   type TransportMode,
   type TransportStep,
   type TravelGuideResponse,
   type TravelPreference,
 } from '../../shared/travelSchema';
+import { AIRLINE_LIVERIES } from '../../data/worldAtlasData';
 import type { CorridorHazardItem } from '../../shared/corridorHazardMatcher';
 import { KERALA_POLICE_PORTAL_LINKS } from '../../shared/policeSchema';
 
 interface TravelDrawerProps {
   origin: MapRegionNode;
   destination: MapRegionNode | null;
+  originDisplayLabel?: string;
+  destinationDisplayLabel?: string | null;
   travelPreference: TravelPreference;
   guide: TravelGuideResponse | null;
   isLoading: boolean;
@@ -51,10 +58,13 @@ interface TravelDrawerProps {
   alternateFeederAdvice?: string | null;
   onPreferenceChange: (pref: TravelPreference) => void;
   onApplyPreset: (originId: string, destinationId: string) => void;
+  onApplyGlobalPreset?: (countryIso: string, stateId: string, cityId: string) => void;
   onRetry: () => void;
   onSwapOriginDestination: () => void;
+  onBookCarrier: (carrier: CarrierFlightOption) => void;
   onBookStep: (step: TransportStep) => void;
   onBookFullJourney: () => void;
+  onOpenSpotGallery?: (spot: SpotGalleryRequest) => void;
   onCreateLockedHouseIntimation?: (details: {
     districtId: string;
     houseAddress: string;
@@ -81,6 +91,8 @@ function getModeIcon(mode: TransportMode) {
 export function TravelDrawer({
   origin,
   destination,
+  originDisplayLabel,
+  destinationDisplayLabel,
   travelPreference,
   guide,
   isLoading,
@@ -90,10 +102,13 @@ export function TravelDrawer({
   alternateFeederAdvice = null,
   onPreferenceChange,
   onApplyPreset,
+  onApplyGlobalPreset,
   onRetry,
   onSwapOriginDestination,
+  onBookCarrier,
   onBookStep,
   onBookFullJourney,
+  onOpenSpotGallery,
   onCreateLockedHouseIntimation,
 }: TravelDrawerProps) {
   const [lockedHouseEnabled, setLockedHouseEnabled] = useState(false);
@@ -101,29 +116,33 @@ export function TravelDrawer({
   const [travelDates, setTravelDates] = useState('Next 3 Days');
   const [loggedIntimationRef, setLoggedIntimationRef] = useState<string | null>(null);
 
+  const effectiveOriginLabel = originDisplayLabel || origin.name;
+  const effectiveDestLabel = destinationDisplayLabel || destination?.name || null;
+  const hasActiveDestination = Boolean(effectiveDestLabel);
+
   const glassClass = isSoftwareGl
-    ? 'bg-white/98'
-    : 'bg-white/92 backdrop-blur-md';
+    ? 'bg-white/96 dark:bg-slate-900/96'
+    : 'bg-white/75 dark:bg-slate-900/78 backdrop-blur-2xl backdrop-saturate-[180%]';
 
   const hasCriticalHazard = routeHazards.some((h) => h.isCritical);
 
   return (
     <aside
-      aria-label="Travel pathway, culture, and ticket booking planner"
-      className={`w-full lg:w-[445px] xl:w-[475px] shrink-0 ${glassClass} border-t lg:border-t-0 lg:border-l border-slate-200/80 text-slate-900 shadow-xl flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden z-20`}
+      aria-label="Travel pathway, carrier selector, world profile, and ticket booking planner"
+      className={`w-full lg:w-[455px] xl:w-[490px] shrink-0 ${glassClass} border-t lg:border-t-0 lg:border-l border-white/75 dark:border-white/10 text-[#111315] dark:text-slate-100 shadow-[0_24px_60px_rgba(17,19,21,0.10)] flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden z-20`}
     >
       {/* Corridor Header + Preference Selector + Presets */}
-      <div className="px-5 py-4 border-b border-slate-200/80 shrink-0 bg-gradient-to-r from-emerald-50/90 via-sky-50/75 to-amber-50/70 space-y-3">
+      <div className="px-5 py-4 border-b border-black/5 dark:border-white/10 shrink-0 bg-white/50 dark:bg-slate-900/50 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1.5">
-            <Route className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
-            Route &amp; Culture Engine
+          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#4F5BD5] flex items-center gap-1.5">
+            <Route className="w-3.5 h-3.5 text-[#4F5BD5]" aria-hidden="true" />
+            Global Route &amp; Carrier Engine
           </span>
           {destination && destination.id !== origin.id && (
             <button
               type="button"
               onClick={onSwapOriginDestination}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-700 hover:text-sky-800 bg-white hover:bg-sky-50 border border-slate-200 shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold text-slate-700 hover:text-[#111315] bg-[#EFECE8] hover:bg-white border border-black/5 transition-colors cursor-pointer"
               title="Swap origin and destination"
             >
               <ArrowRightLeft className="w-3 h-3" aria-hidden="true" />
@@ -135,11 +154,11 @@ export function TravelDrawer({
         <div className="flex items-center gap-2 text-sm font-bold">
           <span className="inline-flex items-center gap-1.5 text-emerald-700 truncate">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-            {origin.name}
+            {effectiveOriginLabel}
           </span>
           <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
-          <span className="truncate text-sky-700">
-            {destination ? destination.name : 'Select destination'}
+          <span className="truncate text-[#4F5BD5]">
+            {effectiveDestLabel || 'Select destination'}
           </span>
         </div>
 
@@ -176,27 +195,55 @@ export function TravelDrawer({
           })}
         </div>
 
-        {/* 2 Quick-Fill Presets */}
+        {/* Quick-Fill Presets (Domestic Kerala + Global International) */}
         <div className="grid grid-cols-2 gap-2">
           {ROUTE_PRESETS.map((preset) => (
             <button
               key={preset.id}
               type="button"
               onClick={() => onApplyPreset(preset.originId, preset.destinationId)}
-              className="px-3 py-2 rounded-xl bg-white/95 hover:bg-sky-50 border border-slate-200/90 hover:border-sky-300 shadow-xs text-left transition-all cursor-pointer"
+              className="px-3 py-2 rounded-2xl bg-[#EFECE8]/85 hover:bg-white border border-black/5 text-left transition-all cursor-pointer"
             >
-              <p className="text-[11px] font-bold text-slate-900 truncate">{preset.label}</p>
+              <p className="text-[11px] font-bold text-[#111315] truncate">{preset.label}</p>
               <p className="text-[10px] text-slate-500 truncate">{preset.subtitle}</p>
             </button>
           ))}
+          {onApplyGlobalPreset && (
+            <>
+              <button
+                type="button"
+                onClick={() => onApplyGlobalPreset('784', 'ae-du', 'dubai')}
+                className="px-3 py-2 rounded-2xl bg-[#EFECE8]/85 hover:bg-white border border-black/5 text-left transition-all cursor-pointer"
+              >
+                <p className="text-[11px] font-bold text-[#111315] truncate">
+                  PTA → Dubai (DXB)
+                </p>
+                <p className="text-[10px] text-[#4F5BD5] font-semibold truncate">
+                  Emirates · Air India Express
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => onApplyGlobalPreset('826', 'uk-eng', 'london')}
+                className="px-3 py-2 rounded-2xl bg-[#EFECE8]/85 hover:bg-white border border-black/5 text-left transition-all cursor-pointer"
+              >
+                <p className="text-[11px] font-bold text-[#111315] truncate">
+                  PTA → London (LHR)
+                </p>
+                <p className="text-[10px] text-[#4F5BD5] font-semibold truncate">
+                  Air India · Qatar · BA
+                </p>
+              </button>
+            </>
+          )}
         </div>
 
         {/* Summary metrics + Book Full Journey CTA */}
         {guide && !isLoading && !error && (
           <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-3 text-xs">
-              <span className="inline-flex items-center gap-1 font-mono font-semibold text-sky-800 tabular-nums">
-                <Clock className="w-3.5 h-3.5 text-sky-600" aria-hidden="true" />
+              <span className="inline-flex items-center gap-1 font-mono font-semibold text-[#111315] tabular-nums">
+                <Clock className="w-3.5 h-3.5 text-[#4F5BD5]" aria-hidden="true" />
                 {guide.estimated_duration}
               </span>
               <span className="inline-flex items-center gap-0.5 font-mono font-bold text-emerald-700 tabular-nums">
@@ -207,9 +254,9 @@ export function TravelDrawer({
             <button
               type="button"
               onClick={onBookFullJourney}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-600 hover:via-teal-600 hover:to-sky-600 text-white text-xs font-bold shadow-sm cursor-pointer transition-all"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#111315] hover:bg-[#24272B] text-white text-xs font-semibold shadow-md cursor-pointer transition-all"
             >
-              <Armchair className="w-3.5 h-3.5" aria-hidden="true" />
+              <Armchair className="w-3.5 h-3.5 text-[#A5B4FC]" aria-hidden="true" />
               Book Full Journey (3D Seats)
             </button>
           </div>
@@ -217,7 +264,7 @@ export function TravelDrawer({
       </div>
 
       {/* Scrollable Body */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 bg-gradient-to-b from-white via-sky-50/20 to-emerald-50/20">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 bg-gradient-to-b from-white/70 via-sky-50/20 to-emerald-50/20 dark:from-slate-950/60 dark:via-slate-900/40 dark:to-slate-950/70">
         {/* Live Corridor Hazard & Safety Alert Banner */}
         {routeHazards.length > 0 && (
           <section
@@ -404,26 +451,23 @@ export function TravelDrawer({
           </div>
         </section>
 
-        {!destination && (
+        {!hasActiveDestination && (
           <div className="py-3 space-y-4">
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-emerald-50/70 border border-sky-200/80 space-y-2 shadow-xs">
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                <Compass className="w-4 h-4 text-sky-600" aria-hidden="true" />
-                Living 3D Earth, Diorama &amp; 3D Seat Booking
+            <div className="p-4 rounded-[24px] bg-[#EFECE8]/85 border border-black/5 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-bold text-[#111315]">
+                <Compass className="w-4 h-4 text-[#4F5BD5]" aria-hidden="true" />
+                195-Country Blue Marble Earth &amp; Carrier Desk
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Dive from our living green &amp; blue Earth into Kerala&apos;s lush miniature 3D
-                world, inspect{' '}
-                <span className="text-emerald-700 font-bold">{origin.name}</span> transit hubs,
-                pick Flight / IRCTC / KSRTC seats in 3D, and pay via instant UPI QR.
+                Click any country on the 3D globe, select a global city via the cascading selector, or click any flying 3D airplane (Emirates, IndiGo, Qatar, Air India, Singapore Airlines, BA) to compare carriers &amp; pick 3D seats.
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-1.5">
+            <div className="p-4 rounded-[24px] bg-white/80 border border-white/80 space-y-1.5">
               <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
-                Origin Regional Spotlight · {origin.name}
+                Origin Regional Spotlight · {effectiveOriginLabel}
               </p>
-              <p className="text-xs text-slate-800 font-semibold">
+              <p className="text-xs text-[#111315] font-semibold">
                 {origin.biodiversity.culture}
               </p>
               <p className="text-[11px] text-slate-600">
@@ -433,30 +477,30 @@ export function TravelDrawer({
           </div>
         )}
 
-        {destination && isLoading && (
+        {hasActiveDestination && isLoading && (
           <div className="space-y-4 py-2" aria-live="polite">
-            <div className="flex items-center gap-2.5 text-xs text-sky-700 font-bold">
+            <div className="flex items-center gap-2.5 text-xs text-[#4F5BD5] font-bold">
               <RefreshCw className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />
-              Planning {travelPreference} corridor &amp; eco-guide to {destination.name}...
+              Comparing carriers &amp; planning {travelPreference} route to {effectiveDestLabel}...
             </div>
             <div className="grid grid-cols-1 gap-2.5">
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="h-20 rounded-xl bg-sky-100/60 border border-sky-200/60 animate-pulse"
+                  className="h-24 rounded-2xl bg-[#EFECE8]/90 border border-black/5 animate-pulse"
                 />
               ))}
             </div>
           </div>
         )}
 
-        {destination && !isLoading && error && (
+        {hasActiveDestination && !isLoading && error && (
           <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-3">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" aria-hidden="true" />
               <div className="space-y-1">
                 <p className="text-xs font-bold text-rose-800">
-                  Could not generate route &amp; culture plan
+                  Could not generate global route &amp; carrier comparison
                 </p>
                 <p className="text-xs text-rose-700 leading-relaxed">{error}</p>
               </div>
@@ -464,7 +508,7 @@ export function TravelDrawer({
             <button
               type="button"
               onClick={onRetry}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-[#111315] text-white cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
               Retry Planner Query
@@ -472,12 +516,160 @@ export function TravelDrawer({
           </div>
         )}
 
-        {destination && !isLoading && !error && guide && (
+        {hasActiveDestination && !isLoading && !error && guide && (
           <>
             {/* Route summary */}
-            <p className="text-xs text-slate-700 leading-relaxed bg-sky-50/70 border border-sky-200/70 rounded-xl px-3.5 py-2.5 font-medium">
+            <p className="text-xs text-slate-700 leading-relaxed bg-[#EFECE8]/85 border border-black/5 rounded-2xl px-4 py-3 font-medium">
               {guide.route_summary}
             </p>
+
+            {/* Carrier & Flight Options Comparison List */}
+            {guide.carrier_options && guide.carrier_options.length > 0 && (
+              <section
+                aria-labelledby="carrier-options-heading"
+                data-testid="carrier-comparison-list"
+                className="space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <h3
+                    id="carrier-options-heading"
+                    className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#4F5BD5] flex items-center gap-1.5"
+                  >
+                    <Plane className="w-3.5 h-3.5" aria-hidden="true" />
+                    Carrier &amp; Flight Options ({guide.carrier_options.length})
+                  </h3>
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    Live INR Fares
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {guide.carrier_options.map((carrier) => {
+                    const livery = AIRLINE_LIVERIES[carrier.iata_code];
+                    const badgeBg =
+                      livery?.accentHex ||
+                      (carrier.channel === 'irctc'
+                        ? '#0284c7'
+                        : carrier.channel === 'ksrtc'
+                          ? '#059669'
+                          : '#111315');
+
+                    return (
+                      <article
+                        key={carrier.id}
+                        className="p-3.5 rounded-[22px] bg-white/90 border border-black/5 shadow-xs space-y-2.5 hover:border-[#4F5BD5]/35 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span
+                              className="w-9 h-9 rounded-xl text-white font-mono text-xs font-extrabold flex items-center justify-center shrink-0 shadow-xs"
+                              style={{ backgroundColor: badgeBg }}
+                            >
+                              {carrier.iata_code}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-xs font-extrabold text-[#111315] truncate">
+                                {carrier.carrier_name}{' '}
+                                <span className="font-mono text-[#4F5BD5]">
+                                  {carrier.flight_or_service_code}
+                                </span>
+                              </p>
+                              <p className="text-[11px] text-slate-500 truncate">
+                                {carrier.aircraft_or_vehicle} · {carrier.stops_label}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-extrabold font-mono text-emerald-700 tabular-nums">
+                              ₹{carrier.fare_inr.toLocaleString('en-IN')}
+                            </p>
+                            <p className="text-[10px] font-mono text-slate-500">
+                              {carrier.duration}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[#EFECE8]/75 text-[11px] text-slate-700">
+                          <span className="font-mono font-bold text-[#111315]">
+                            {carrier.departure_time} → {carrier.arrival_time}
+                          </span>
+                          <span className="truncate text-[10.5px] text-slate-600">
+                            {carrier.from_hub} → {carrier.to_hub}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-0.5">
+                          <span className="text-[10.5px] font-medium text-slate-500 truncate">
+                            Baggage: {carrier.baggage_allowance}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => onBookCarrier(carrier)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#111315] hover:bg-[#24272B] text-white text-[11px] font-semibold shadow-xs transition-all cursor-pointer shrink-0"
+                          >
+                            <Armchair className="w-3 h-3 text-[#A5B4FC]" aria-hidden="true" />
+                            Select {carrier.channel === 'flight' ? 'Flight' : 'Service'} &amp; Choose Seat
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Destination World Profile Card */}
+            {guide.destination_world_profile && (
+              <section
+                aria-labelledby="world-profile-heading"
+                className="p-4 rounded-[24px] bg-[#EFECE8]/80 border border-black/5 space-y-2.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h3
+                    id="world-profile-heading"
+                    className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#4F5BD5]"
+                  >
+                    Destination World Profile · {guide.destination_world_profile.country}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full bg-white text-[10px] font-mono font-bold text-[#111315]">
+                    {guide.destination_world_profile.currency}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="px-3 py-2 rounded-xl bg-white/85 border border-black/5">
+                    <span className="text-[10px] uppercase font-mono text-slate-500 block">
+                      State / Region
+                    </span>
+                    <span className="font-bold text-[#111315]">
+                      {guide.destination_world_profile.state_or_region}
+                    </span>
+                  </div>
+                  <div className="px-3 py-2 rounded-xl bg-white/85 border border-black/5">
+                    <span className="text-[10px] uppercase font-mono text-slate-500 block">
+                      Timezone
+                    </span>
+                    <span className="font-bold text-[#111315]">
+                      {guide.destination_world_profile.timezone}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  <strong className="text-[#111315]">Signature Landmark: </strong>
+                  {guide.destination_world_profile.signature_landmark}
+                </p>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  <strong className="text-[#111315]">Biome &amp; Wildlife: </strong>
+                  {guide.destination_world_profile.local_biome_and_wildlife}
+                </p>
+                <div className="px-3 py-2 rounded-xl bg-white/90 border border-[#4F5BD5]/20 text-[11px] text-slate-700">
+                  <strong className="text-[#4F5BD5]">Visa &amp; Entry Tip: </strong>
+                  {guide.destination_world_profile.visa_and_entry_tip}
+                </div>
+              </section>
+            )}
 
             {/* Origin Nearest Hubs */}
             <section aria-labelledby="origin-hubs-heading" className="space-y-2">
@@ -663,33 +855,62 @@ export function TravelDrawer({
               </div>
             </section>
 
-            {/* Top 3 Tourist Spots */}
+            {/* Top 3 Tourist Spots (Clickable -> Wikimedia Picture Library) */}
             <section aria-labelledby="tourist-spots-heading" className="space-y-2.5 pb-2">
-              <h3
-                id="tourist-spots-heading"
-                className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
-                Top 3 Tourist Spots
-              </h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3
+                  id="tourist-spots-heading"
+                  className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+                  Top 3 Tourist Spots
+                </h3>
+                <span className="text-[10px] font-semibold text-[#4F5BD5] dark:text-[#A5B4FC]">
+                  Tap for Live Photos
+                </span>
+              </div>
               <div className="space-y-2.5">
                 {guide.tourist_spots.map((spot, index) => (
-                  <article
+                  <LiquidGlassCard
                     key={`${spot.name}-${index}`}
-                    className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-xs space-y-1.5"
+                    delay={index * 0.05}
+                    onClick={() =>
+                      onOpenSpotGallery?.({
+                        name: spot.name,
+                        region: guide.destination,
+                        subtitle: `${spot.category} · ${guide.destination}`,
+                        description: `${spot.description} Reach via: ${spot.how_to_reach_from_hub}`,
+                        badge: spot.category,
+                        googleMapsQuery: `${spot.name}, ${guide.destination}`,
+                      })
+                    }
+                    className="p-3.5 rounded-2xl space-y-1.5"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-xs font-bold text-slate-900">{spot.name}</h4>
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
+                      <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                        {spot.name}
+                      </h4>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50 shrink-0">
                         {spot.category}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-600 leading-relaxed">{spot.description}</p>
-                    <p className="text-[11px] text-sky-700 font-medium flex items-start gap-1.5 pt-0.5">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
-                      <span>{spot.how_to_reach_from_hub}</span>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      {spot.description}
                     </p>
-                  </article>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <p className="text-[11px] text-sky-700 dark:text-sky-300 font-medium flex items-start gap-1.5 min-w-0">
+                        <MapPin
+                          className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5"
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">{spot.how_to_reach_from_hub}</span>
+                      </p>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#4F5BD5]/12 text-[#4F5BD5] dark:text-[#A5B4FC] text-[10px] font-bold shrink-0">
+                        <Camera className="w-3 h-3" />
+                        Photos
+                      </span>
+                    </div>
+                  </LiquidGlassCard>
                 ))}
               </div>
             </section>

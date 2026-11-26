@@ -41,6 +41,8 @@ export interface CabinLayoutSpec {
   cabinWidth: number;
   cabinLength: number;
   isSleeperBerth: boolean;
+  liveryAccentHex?: string;
+  airlineName?: string;
   seats: CabinSeatItem[];
 }
 
@@ -60,13 +62,89 @@ export function generateCabinLayout(params: {
   railClass: IrctcRailClass;
   flightClass: FlightCabinClass;
   busTier: KsrtcBusTier;
+  airlineName?: string;
+  airlineAccentHex?: string;
+  aircraftModel?: string;
+  isWideBody?: boolean;
 }): CabinLayoutSpec {
-  const { channel, railClass, flightClass, busTier } = params;
+  const {
+    channel,
+    railClass,
+    flightClass,
+    busTier,
+    airlineName,
+    airlineAccentHex,
+    aircraftModel,
+    isWideBody,
+  } = params;
 
   if (channel === 'flight') {
+    const carrierLabel = airlineName ? `${airlineName}` : 'Flight 3D Cabin';
+    const aircraftTag = aircraftModel || (isWideBody ? 'Airbus A380 / B777' : 'Airbus A321neo');
+
+    // Wide-body First Class & Business Pods (1-2-1 private luxury suites)
+    if (flightClass === 'First Class' || (isWideBody && flightClass === 'Business')) {
+      const seats: CabinSeatItem[] = [];
+      const cols = ['A', 'D', 'G', 'K'] as const;
+      const colX: Record<(typeof cols)[number], number> = {
+        A: -1.85,
+        D: -0.45,
+        G: 0.45,
+        K: 1.85,
+      };
+      const rowCount = flightClass === 'First Class' ? 4 : 6;
+      const rowSpacing = flightClass === 'First Class' ? 1.55 : 1.28;
+      const startZ = -((rowCount - 1) * rowSpacing) / 2 + 0.35;
+      let idx = 0;
+
+      for (let r = 1; r <= rowCount; r++) {
+        const z = startZ + (r - 1) * rowSpacing;
+        for (const col of cols) {
+          const isWindow = col === 'A' || col === 'K';
+          const positionTag = isWindow ? 'Window Suite' : 'Center Pod';
+          const code = `${r}${col}`;
+          seats.push({
+            id: `FL-${code}`,
+            code,
+            displayLabel: `${code} - ${positionTag}`,
+            positionTag,
+            row: r,
+            column: col,
+            x: colX[col],
+            y: 0.25,
+            z,
+            rotY: 0,
+            width: 0.72,
+            depth: 0.92,
+            kind: 'seat',
+            isWindow,
+            status: deterministicBooked(`flight-pod-${flightClass}-${code}`, idx)
+              ? 'booked'
+              : 'available',
+            surchargeInr: 0,
+          });
+          idx++;
+        }
+      }
+
+      return {
+        channel: 'flight',
+        title: `${carrierLabel} · ${flightClass}`,
+        subtitle: `1-2-1 ${flightClass === 'First Class' ? 'Private Suites' : 'Lie-Flat Pods'} · ${aircraftTag}`,
+        layoutTag: '1-2-1 Wide-Body Suites',
+        coachCode: flightClass === 'First Class' ? 'FIRST' : 'BIZ',
+        cabinWidth: 5.0,
+        cabinLength: rowCount * rowSpacing + 2.8,
+        isSleeperBerth: false,
+        liveryAccentHex: airlineAccentHex,
+        airlineName,
+        seats,
+      };
+    }
+
     const seats: CabinSeatItem[] = [];
     const cols = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
-    // 3-3 narrow-body fuselage: A-B-C | aisle | D-E-F
+    // 3-3 fuselage: A-B-C | aisle | D-E-F
     const colX: Record<(typeof cols)[number], number> = {
       A: -1.72,
       B: -1.16,
@@ -82,7 +160,6 @@ export function generateCabinLayout(params: {
 
     for (let r = 1; r <= rowCount; r++) {
       const z = startZ + (r - 1) * rowSpacing;
-      // Display realistic flight row numbers (e.g. 3..12) so 12A - Window exists
       const displayRow = r + 2;
       for (const col of cols) {
         const isWindow = col === 'A' || col === 'F';
@@ -122,13 +199,15 @@ export function generateCabinLayout(params: {
 
     return {
       channel: 'flight',
-      title: `Flight 3D Cabin · ${flightClass}`,
-      subtitle: '3-3 Fuselage · A–C | Aisle | D–F · Cockpit Forward',
-      layoutTag: '3-3 Narrowbody',
+      title: `${carrierLabel} · ${flightClass}`,
+      subtitle: `3-3 Cabin · A–C | Aisle | D–F · ${aircraftTag}`,
+      layoutTag: isWideBody ? 'Wide-Body Economy' : '3-3 Narrowbody',
       coachCode: flightClass === 'Business' ? 'BUS' : flightClass === 'Premium Economy' ? 'PE' : 'ECO',
       cabinWidth: 4.5,
       cabinLength: rowCount * rowSpacing + 2.6,
       isSleeperBerth: false,
+      liveryAccentHex: airlineAccentHex,
+      airlineName,
       seats,
     };
   }

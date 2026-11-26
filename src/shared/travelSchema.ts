@@ -85,6 +85,35 @@ export interface TouristSpot {
   how_to_reach_from_hub: string;
 }
 
+export interface CarrierFlightOption {
+  id: string;
+  carrier_name: string;
+  iata_code: string;
+  flight_or_service_code: string;
+  aircraft_or_vehicle: string;
+  stops_label: string;
+  departure_time: string;
+  arrival_time: string;
+  duration: string;
+  baggage_allowance: string;
+  fare_inr: number;
+  channel: 'flight' | 'irctc' | 'ksrtc';
+  is_wide_body: boolean;
+  from_hub: string;
+  to_hub: string;
+}
+
+export interface DestinationWorldProfile {
+  country: string;
+  state_or_region: string;
+  currency: string;
+  timezone: string;
+  signature_landmark: string;
+  local_biome_and_wildlife: string;
+  visa_and_entry_tip: string;
+  top_3_attractions: string[];
+}
+
 export interface TravelGuideResponse {
   origin: string;
   destination: string;
@@ -96,6 +125,8 @@ export interface TravelGuideResponse {
   transport_steps: TransportStep[];
   regional_culture_and_biodiversity: RegionalCultureBiodiversity;
   tourist_spots: TouristSpot[];
+  carrier_options?: CarrierFlightOption[];
+  destination_world_profile?: DestinationWorldProfile;
 }
 
 export function computePolygonCentroid(polygon: ReadonlyArray<[number, number]>): Point2D {
@@ -276,6 +307,66 @@ export function normalizeTravelGuidePayload(
     };
   });
 
+  const rawCarriers = Array.isArray(obj.carrier_options) ? obj.carrier_options : [];
+  const carrier_options: CarrierFlightOption[] = rawCarriers
+    .slice(0, 6)
+    .map((entry, idx) => {
+      const c = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {};
+      const rawChannel = typeof c.channel === 'string' ? c.channel.toLowerCase() : 'flight';
+      const channel: 'flight' | 'irctc' | 'ksrtc' =
+        rawChannel.includes('irctc') || rawChannel.includes('rail') || rawChannel.includes('train')
+          ? 'irctc'
+          : rawChannel.includes('ksrtc') || rawChannel.includes('bus')
+            ? 'ksrtc'
+            : 'flight';
+      const parsedFare = Number(c.fare_inr);
+      return {
+        id: asString(c.id, `carrier-${idx + 1}`),
+        carrier_name: asString(c.carrier_name, channel === 'flight' ? 'IndiGo' : channel === 'irctc' ? 'IRCTC Express' : 'KSRTC Swift'),
+        iata_code: asString(c.iata_code, channel === 'flight' ? '6E' : channel === 'irctc' ? 'IR' : 'KL'),
+        flight_or_service_code: asString(c.flight_or_service_code, channel === 'flight' ? '6E-412' : 'Express'),
+        aircraft_or_vehicle: asString(c.aircraft_or_vehicle, channel === 'flight' ? 'Airbus A321neo' : channel === 'irctc' ? 'Vande Bharat / LHB Rake' : 'KSRTC Swift Volvo'),
+        stops_label: asString(c.stops_label, 'Non-stop'),
+        departure_time: asString(c.departure_time, '08:30'),
+        arrival_time: asString(c.arrival_time, '11:45'),
+        duration: asString(c.duration, '3h 15m'),
+        baggage_allowance: asString(c.baggage_allowance, channel === 'flight' ? '15 kg Check-in + 7 kg Cabin' : 'Standard Allowance'),
+        fare_inr: Number.isFinite(parsedFare) && parsedFare >= 40 ? Math.round(parsedFare) : channel === 'flight' ? 4850 : 650,
+        channel,
+        is_wide_body: Boolean(c.is_wide_body),
+        from_hub: asString(c.from_hub, fallbackOrigin),
+        to_hub: asString(c.to_hub, fallbackDestination),
+      };
+    });
+
+  const wpObj =
+    obj.destination_world_profile && typeof obj.destination_world_profile === 'object'
+      ? (obj.destination_world_profile as Record<string, unknown>)
+      : null;
+
+  const destination_world_profile: DestinationWorldProfile | undefined = wpObj
+    ? {
+        country: asString(wpObj.country, 'India'),
+        state_or_region: asString(wpObj.state_or_region, fallbackDestination),
+        currency: asString(wpObj.currency, 'INR (₹)'),
+        timezone: asString(wpObj.timezone, 'UTC+05:30 (IST)'),
+        signature_landmark: asString(wpObj.signature_landmark, `${fallbackDestination} Heritage Core`),
+        local_biome_and_wildlife: asString(
+          wpObj.local_biome_and_wildlife,
+          'Regional biodiversity and protected ecological reserves'
+        ),
+        visa_and_entry_tip: asString(
+          wpObj.visa_and_entry_tip,
+          'Carry valid government photo ID or passport/e-visa per destination regulations.'
+        ),
+        top_3_attractions: Array.isArray(wpObj.top_3_attractions)
+          ? wpObj.top_3_attractions
+              .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+              .slice(0, 3)
+          : tourist_spots.map((s) => s.name),
+      }
+    : undefined;
+
   return {
     origin: asString(obj.origin, fallbackOrigin),
     destination: asString(obj.destination, fallbackDestination),
@@ -289,16 +380,16 @@ export function normalizeTravelGuidePayload(
     origin_nearest_hubs: {
       railway_station: asString(
         hubsObj.railway_station,
-        fallbackOrigin.toLowerCase() === 'pathanamthitta'
+        fallbackOrigin.toLowerCase().includes('pathanamthitta')
           ? 'Thiruvalla (TRVL) / Chengannur (CNGR) — 26–30 km'
           : `${fallbackOrigin} Main Railway Station`
       ),
-      ksrtc_depot: asString(hubsObj.ksrtc_depot, `${fallbackOrigin} KSRTC Central Bus Depot`),
+      ksrtc_depot: asString(hubsObj.ksrtc_depot, `${fallbackOrigin} Central Bus / Feeder Hub`),
       nearest_airport: asString(
         hubsObj.nearest_airport,
-        fallbackOrigin.toLowerCase() === 'pathanamthitta'
-          ? 'Thiruvananthapuram (TRV) / Cochin (COK)'
-          : 'Nearest Kerala International Airport'
+        fallbackOrigin.toLowerCase().includes('pathanamthitta')
+          ? 'Cochin (COK) / Thiruvananthapuram (TRV)'
+          : 'Nearest International Airport'
       ),
     },
     transport_steps,
@@ -309,17 +400,19 @@ export function normalizeTravelGuidePayload(
       ),
       signature_fauna: asString(
         bioObj.signature_fauna,
-        'Western Ghats endemic wildlife & migratory wetland birds'
+        'Endemic regional wildlife & migratory birds'
       ),
       cultural_highlight: asString(
         bioObj.cultural_highlight,
-        'Traditional temple arts, folk performances & historic spice-route heritage'
+        'Traditional arts, culinary craft & historic heritage'
       ),
       eco_travel_tip: asString(
         bioObj.eco_travel_tip,
-        'Carry reusable water bottles and follow plastic-free green protocol guidelines.'
+        'Carry reusable water bottles and follow sustainable green travel guidelines.'
       ),
     },
     tourist_spots,
+    ...(carrier_options.length > 0 ? { carrier_options } : {}),
+    ...(destination_world_profile ? { destination_world_profile } : {}),
   };
 }

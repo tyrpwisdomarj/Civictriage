@@ -31,7 +31,9 @@ import {
   sendRepairResolutionEmail,
 } from './utils/emailAlert';
 import { SidebarNav, type WorkspaceTab } from './components/SidebarNav';
-import { TopBar } from './components/TopBar';
+import { TopBar, type GlobalSearchResult } from './components/TopBar';
+import { HomePortalView } from './components/HomePortalView';
+import { LocalLifeHubView } from './components/LocalLifeHubView';
 import { TriageIntakeForm } from './components/TriageIntakeForm';
 import { TriageResultPanel } from './components/TriageResultPanel';
 import { TicketQueueView } from './components/TicketQueueView';
@@ -41,11 +43,36 @@ import {
   PoliceSafetyDeskView,
   type PoliceCasePrefill,
 } from './components/PoliceSafetyDeskView';
-import { TravelDistrictGuideView } from './components/travel/TravelDistrictGuideView';
+import {
+  TravelDistrictGuideView,
+  type WorldDestinationRequest,
+} from './components/travel/TravelDistrictGuideView';
+import { UpiPaymentModal } from './components/travel/UpiPaymentModal';
 import { AssistantChatbotWidget } from './components/AssistantChatbotWidget';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import {
+  SpotPictureLibraryDrawer,
+  type SpotGalleryRequest,
+} from './components/SpotPictureLibraryDrawer';
+import { useThemeMode } from './hooks/useThemeMode';
 import { DEFAULT_ORIGIN_ID, getRegionById } from './data/keralaMapData';
-import type { BookedETicket } from './shared/bookingSchema';
+import type {
+  AdmissionApplicationRecord,
+  EventPlanData,
+  ExpenseEntry,
+  FoodDeliveryStage,
+  JobApplicationRecord,
+  LocalFeederRoute,
+  LocalLifeSection,
+  OnSpotFoodOrder,
+  StudyPlanData,
+  WeekendItineraryData,
+} from './data/localLifeData';
+import {
+  getTomorrowIsoDate,
+  type BookedETicket,
+  type BookingDraft,
+} from './shared/bookingSchema';
 import type {
   AssistantActionId,
   AssistantSessionContext,
@@ -54,6 +81,24 @@ import type {
 const STORAGE_KEY = 'civictriage_lsg_tickets_v1';
 const BOOKED_TICKETS_STORAGE_KEY = 'civictriage_booked_tickets_v1';
 const POLICE_CASES_STORAGE_KEY = 'civictriage_police_cases_v1';
+const STUDY_PLAN_STORAGE_KEY = 'civictriage_study_plan_v1';
+const ADMISSIONS_STORAGE_KEY = 'civictriage_admissions_v1';
+const JOB_APPS_STORAGE_KEY = 'civictriage_job_apps_v1';
+const WEEKEND_PLAN_STORAGE_KEY = 'civictriage_weekend_plan_v1';
+const EVENT_PLAN_STORAGE_KEY = 'civictriage_event_plan_v1';
+const FOOD_ORDERS_STORAGE_KEY = 'civictriage_food_orders_v1';
+const EXPENSES_STORAGE_KEY = 'civictriage_expenses_v1';
+const BUDGET_GOAL_STORAGE_KEY = 'civictriage_budget_goal_v1';
+
+function loadSavedJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
 
 function loadSavedBookedTickets(): BookedETicket[] {
   try {
@@ -92,7 +137,8 @@ function loadInitialTickets(): StoredTicket[] {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('intake');
+  const { theme, toggleTheme } = useThemeMode();
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [tickets, setTickets] = useState<StoredTicket[]>(loadInitialTickets);
@@ -119,10 +165,51 @@ export default function App() {
   // Lifted Travel & Booked Tickets state so the global AI Assistant & Corridor Matcher stay live
   const [travelOriginId, setTravelOriginId] = useState<string>(DEFAULT_ORIGIN_ID);
   const [travelDestinationId, setTravelDestinationId] = useState<string | null>(null);
+  const [externalWorldDest, setExternalWorldDest] =
+    useState<WorldDestinationRequest | null>(null);
   const [bookedTickets, setBookedTickets] = useState<BookedETicket[]>(
     loadSavedBookedTickets
   );
   const [myTicketsOpen, setMyTicketsOpen] = useState<boolean>(false);
+
+  // Local Life Hub state + Feeder Pass UPI Modal state
+  const [localLifeSection, setLocalLifeSection] = useState<LocalLifeSection>('education');
+  const [localLifeDistrictId, setLocalLifeDistrictId] = useState<string>('pathanamthitta');
+  const [feederPaymentDraft, setFeederPaymentDraft] = useState<BookingDraft | null>(null);
+  const [feederPaymentFare, setFeederPaymentFare] = useState<number>(0);
+  const [feederPaymentOpen, setFeederPaymentOpen] = useState<boolean>(false);
+
+  // Education, Jobs, Lifestyle, Weekend Planner, Event AI, Expenses & Global Picture Library state
+  const [studyPlan, setStudyPlan] = useState<StudyPlanData | null>(() =>
+    loadSavedJson<StudyPlanData | null>(STUDY_PLAN_STORAGE_KEY, null)
+  );
+  const [admissionApplications, setAdmissionApplications] = useState<
+    AdmissionApplicationRecord[]
+  >(() =>
+    loadSavedJson<AdmissionApplicationRecord[]>(ADMISSIONS_STORAGE_KEY, [])
+  );
+  const [jobApplications, setJobApplications] = useState<JobApplicationRecord[]>(() =>
+    loadSavedJson<JobApplicationRecord[]>(JOB_APPS_STORAGE_KEY, [])
+  );
+  const [weekendItinerary, setWeekendItinerary] =
+    useState<WeekendItineraryData | null>(() =>
+      loadSavedJson<WeekendItineraryData | null>(WEEKEND_PLAN_STORAGE_KEY, null)
+    );
+  const [eventPlan, setEventPlan] = useState<EventPlanData | null>(() =>
+    loadSavedJson<EventPlanData | null>(EVENT_PLAN_STORAGE_KEY, null)
+  );
+  const [foodOrders, setFoodOrders] = useState<OnSpotFoodOrder[]>(() =>
+    loadSavedJson<OnSpotFoodOrder[]>(FOOD_ORDERS_STORAGE_KEY, [])
+  );
+  const [expenses, setExpenses] = useState<ExpenseEntry[]>(() =>
+    loadSavedJson<ExpenseEntry[]>(EXPENSES_STORAGE_KEY, [])
+  );
+  const [budgetGoalInr, setBudgetGoalInr] = useState<number>(() => {
+    const saved = loadSavedJson<number>(BUDGET_GOAL_STORAGE_KEY, 12000);
+    return typeof saved === 'number' && saved > 0 ? saved : 12000;
+  });
+  const [activeSpotGallery, setActiveSpotGallery] =
+    useState<SpotGalleryRequest | null>(null);
 
   useEffect(() => {
     initEmailJs();
@@ -158,6 +245,100 @@ export default function App() {
     }
   }, [policeCases]);
 
+  useEffect(() => {
+    try {
+      if (studyPlan) {
+        window.localStorage.setItem(
+          STUDY_PLAN_STORAGE_KEY,
+          JSON.stringify(studyPlan)
+        );
+      } else {
+        window.localStorage.removeItem(STUDY_PLAN_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore quota errors
+    }
+  }, [studyPlan]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        ADMISSIONS_STORAGE_KEY,
+        JSON.stringify(admissionApplications)
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [admissionApplications]);
+
+  useEffect(() => {
+    try {
+      if (weekendItinerary) {
+        window.localStorage.setItem(
+          WEEKEND_PLAN_STORAGE_KEY,
+          JSON.stringify(weekendItinerary)
+        );
+      } else {
+        window.localStorage.removeItem(WEEKEND_PLAN_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore quota errors
+    }
+  }, [weekendItinerary]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [expenses]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        BUDGET_GOAL_STORAGE_KEY,
+        JSON.stringify(budgetGoalInr)
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [budgetGoalInr]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        JOB_APPS_STORAGE_KEY,
+        JSON.stringify(jobApplications)
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [jobApplications]);
+
+  useEffect(() => {
+    try {
+      if (eventPlan) {
+        window.localStorage.setItem(EVENT_PLAN_STORAGE_KEY, JSON.stringify(eventPlan));
+      } else {
+        window.localStorage.removeItem(EVENT_PLAN_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore quota errors
+    }
+  }, [eventPlan]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        FOOD_ORDERS_STORAGE_KEY,
+        JSON.stringify(foodOrders)
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [foodOrders]);
+
   const metrics = useMemo(() => computeQueueMetrics(tickets), [tickets]);
 
   const activePoliceCount = useMemo(
@@ -184,21 +365,26 @@ export default function App() {
 
   const assistantSessionContext = useMemo<AssistantSessionContext>(() => {
     const tabLabels: Record<WorkspaceTab, string> = {
+      home: 'Welcome Portal Homepage',
       intake: 'Citizen Report',
       queue: 'Officer Dashboard',
       police: 'Police & Safety Desk',
-      travel: 'Travel & 3D Explorer',
+      travel: 'Global 3D Travel & Bookings',
+      local_life: 'Local Life Hub',
       policy: 'Routing Policy',
     };
     const originRegion = getRegionById(travelOriginId);
     const destRegion = travelDestinationId
       ? getRegionById(travelDestinationId)
       : null;
+    const localLifeDistrictObj = getRegionById(localLifeDistrictId);
 
     return {
       activeTab: tabLabels[activeTab],
       travelOriginName: originRegion?.name ?? 'Pathanamthitta',
       travelDestinationName: destRegion?.name ?? null,
+      localLifeDistrict: localLifeDistrictObj?.name ?? 'All Kerala',
+      localLifeSection,
       tickets: tickets.slice(0, 12).map((t) => ({
         id: t.id,
         title: t.triage.ticket_title,
@@ -229,18 +415,44 @@ export default function App() {
         actualFareInr: b.actualFareInr,
         isDemoFare: b.isDemoFare,
       })),
+      jobApplications: jobApplications.slice(0, 6).map((j) => ({
+        applicationId: j.applicationId,
+        jobTitle: j.jobTitle,
+        employer: j.employer,
+        district: j.district,
+        status: j.status,
+      })),
+      weekendPlanHeadline: weekendItinerary?.headline ?? null,
+      activeEventHeadline: eventPlan?.headline ?? null,
+      foodOrders: foodOrders.slice(0, 5).map((o) => ({
+        orderId: o.orderId,
+        eventHeadline: o.eventHeadline,
+        spotLocation: o.spotLocation,
+        totalInr: o.totalInr,
+        stage: o.stage,
+      })),
     };
   }, [
     activeTab,
     travelOriginId,
     travelDestinationId,
+    localLifeDistrictId,
+    localLifeSection,
     tickets,
     policeCases,
     bookedTickets,
+    jobApplications,
+    weekendItinerary,
+    eventPlan,
+    foodOrders,
   ]);
 
   const handleAssistantNavigate = (action: AssistantActionId) => {
     switch (action) {
+      case 'home':
+        setMyTicketsOpen(false);
+        setActiveTab('home');
+        break;
       case 'citizen_report':
         setMyTicketsOpen(false);
         setActiveTab('intake');
@@ -257,11 +469,139 @@ export default function App() {
         setMyTicketsOpen(false);
         setActiveTab('travel');
         break;
+      case 'local_life':
+        setMyTicketsOpen(false);
+        setActiveTab('local_life');
+        break;
+      case 'jobs_portal':
+        setMyTicketsOpen(false);
+        setLocalLifeSection('jobs');
+        setActiveTab('local_life');
+        break;
+      case 'weekend_planner':
+        setMyTicketsOpen(false);
+        setLocalLifeSection('weekend');
+        setActiveTab('local_life');
+        break;
+      case 'event_ai':
+        setMyTicketsOpen(false);
+        setLocalLifeSection('events');
+        setActiveTab('local_life');
+        break;
       case 'my_tickets':
         setActiveTab('travel');
         setMyTicketsOpen(true);
         break;
     }
+  };
+
+  const handleOpenQuickGlobalDest = (
+    countryIso: string,
+    stateId: string,
+    cityId: string
+  ) => {
+    setExternalWorldDest({
+      countryIso,
+      stateId,
+      cityId,
+      token: Date.now(),
+    });
+    setActiveTab('travel');
+  };
+
+  const handleSelectGlobalSearchResult = (res: GlobalSearchResult) => {
+    if (res.category === 'world') {
+      const [countryIso, stateId, cityId] = res.payload.split('::');
+      handleOpenQuickGlobalDest(countryIso, stateId, cityId);
+      return;
+    }
+    if (res.category === 'civic') {
+      setSelectedQueueTicketId(res.payload);
+      setActiveTab('queue');
+      return;
+    }
+    if (res.category === 'police') {
+      setActiveTab('police');
+      return;
+    }
+    if (res.category === 'education' || res.category === 'lifestyle' || res.category === 'transport') {
+      setLocalLifeSection(res.category);
+      if (res.payload) setLocalLifeDistrictId(res.payload);
+      setActiveTab('local_life');
+    }
+  };
+
+  const handleBookFeederPass = (route: LocalFeederRoute) => {
+    const draft: BookingDraft = {
+      channel: 'ksrtc',
+      from: route.fromStop,
+      to: route.toStop,
+      operatorOrLine: `${route.routeName} (${route.mode})`,
+      railClass: '2S',
+      busTier: 'Super Fast',
+      seatPreference: 'Window',
+      selectedSeats: ['Feeder Day Pass · Open Boarding'],
+      travelDate: getTomorrowIsoDate(),
+      passengerName: 'Kerala Commuter',
+      passengerAge: 26,
+      passengerCount: 1,
+      baseFareInr: route.fareInr,
+    };
+    setFeederPaymentDraft(draft);
+    setFeederPaymentFare(route.fareInr);
+    setFeederPaymentOpen(true);
+  };
+
+  const handleAddExpense = (entry: Omit<ExpenseEntry, 'id' | 'date'>) => {
+    const record: ExpenseEntry = {
+      ...entry,
+      id: `EXP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    setExpenses((prev) => [record, ...prev]);
+  };
+
+  const handleDeleteExpense = (id: string) => {
+    setExpenses((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleSubmitAdmission = (record: AdmissionApplicationRecord) => {
+    setAdmissionApplications((prev) => [record, ...prev]);
+  };
+
+  const handleSubmitJobApplication = (record: JobApplicationRecord) => {
+    setJobApplications((prev) => [record, ...prev]);
+  };
+
+  const handlePlaceFoodOrder = (order: OnSpotFoodOrder) => {
+    setFoodOrders((prev) => [order, ...prev]);
+    handleAddExpense({
+      title: `On-Spot Event Food · ${order.spotLocation}`,
+      category: 'Food & Cafes',
+      amountInr: order.totalInr,
+      source: 'Event Order',
+      note: `Order ${order.orderId} · ${order.items.length} item(s) · UTR ${order.utrNumber || 'Auto'}`,
+    });
+  };
+
+  const handleAdvanceFoodOrderStage = (orderId: string, nextStage: FoodDeliveryStage) => {
+    setFoodOrders((prev) =>
+      prev.map((o) => (o.orderId === orderId ? { ...o, stage: nextStage } : o))
+    );
+  };
+
+  const handleIssueTicketWithAutoExpense = (ticket: BookedETicket) => {
+    setBookedTickets((prev) => [ticket, ...prev]);
+    const isFeeder =
+      ticket.channel === 'ksrtc' &&
+      ticket.operatorOrLine.toLowerCase().includes('feeder');
+    handleAddExpense({
+      title: `${ticket.operatorOrLine} (${ticket.from} → ${ticket.to})`,
+      category: isFeeder ? 'Local Transport & Fuel' : 'Travel Tickets',
+      amountInr: ticket.actualFareInr > 0 ? ticket.actualFareInr : ticket.paidAmountInr,
+      source: 'Auto-Booked',
+      note: `Auto-logged via PNR ${ticket.pnr} · ${ticket.seatAssignment}`,
+    });
   };
 
   const handleLoadDemoData = () => {
@@ -271,6 +611,13 @@ export default function App() {
     setBookedTickets(bundle.bookedTickets);
     setTravelOriginId(bundle.travelOriginId);
     setTravelDestinationId(bundle.travelDestinationId);
+    setStudyPlan(bundle.demoStudyPlan);
+    setAdmissionApplications(bundle.demoAdmissionApplications);
+    setJobApplications(bundle.demoJobApplications);
+    setWeekendItinerary(bundle.demoWeekendItinerary);
+    setEventPlan(bundle.demoEventPlan);
+    setFoodOrders(bundle.demoFoodOrders);
+    setExpenses(bundle.demoExpenses);
     setLatestTicketId(bundle.tickets[0]?.id ?? null);
     setSelectedQueueTicketId(bundle.tickets[0]?.id ?? null);
     setDemoLoaded(true);
@@ -567,14 +914,25 @@ export default function App() {
   return (
     <div
       id="top"
-      className="min-h-screen flex bg-gradient-to-br from-sky-50 via-white to-emerald-50/70 text-slate-900"
+      className="relative min-h-screen flex text-[#111315] dark:text-slate-100 transition-colors duration-300"
     >
+      {/* Floating Ambient Liquid Glass Background Orbs */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+      >
+        <div className="ambient-orb-1 absolute -top-24 -left-20 w-[460px] h-[460px] rounded-full bg-[#7B83EB]/25 dark:bg-[#4F5BD5]/25 blur-[110px]" />
+        <div className="ambient-orb-2 absolute top-[22%] right-[-8%] w-[500px] h-[500px] rounded-full bg-[#FFF8EE]/80 dark:bg-indigo-900/25 blur-[120px]" />
+        <div className="ambient-orb-3 absolute bottom-[-12%] left-[28%] w-[440px] h-[440px] rounded-full bg-[#67E8F9]/25 dark:bg-cyan-500/15 blur-[115px]" />
+      </div>
+
       <SidebarNav
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         onSelectDepartmentFilter={handleSelectDepartmentFromSidebar}
         metrics={metrics}
         activePoliceCount={activePoliceCount}
+        bookedTicketsCount={bookedTickets.length}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
       />
@@ -583,10 +941,16 @@ export default function App() {
         <TopBar
           activeTab={activeTab}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          onGoHome={() => setActiveTab('home')}
           onPrimaryAction={handleTopBarPrimaryAction}
           primaryActionLabel={topBarActionLabel}
           onLoadDemoData={handleLoadDemoData}
           demoLoaded={demoLoaded}
+          tickets={tickets}
+          policeCases={policeCases}
+          onSelectSearchResult={handleSelectGlobalSearchResult}
+          themeMode={theme}
+          onToggleTheme={toggleTheme}
         />
 
         {activeTab === 'travel' ? (
@@ -597,20 +961,36 @@ export default function App() {
               bookedTickets={bookedTickets}
               myTicketsOpen={myTicketsOpen}
               corridorHazardReport={corridorHazardReport}
+              externalWorldDest={externalWorldDest}
               onOriginIdChange={setTravelOriginId}
               onDestinationIdChange={setTravelDestinationId}
-              onTicketIssued={(ticket) =>
-                setBookedTickets((prev) => [ticket, ...prev])
-              }
+              onTicketIssued={handleIssueTicketWithAutoExpense}
               onDeleteBookedTicket={(id) =>
                 setBookedTickets((prev) => prev.filter((item) => item.id !== id))
               }
               onMyTicketsOpenChange={setMyTicketsOpen}
+              onOpenSpotGallery={setActiveSpotGallery}
               onCreateLockedHouseIntimation={handleCreateLockedHouseIntimation}
             />
           </main>
         ) : (
           <main className="flex-1 w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {activeTab === 'home' && (
+              <HomePortalView
+                metrics={metrics}
+                activePoliceCount={activePoliceCount}
+                bookedTicketsCount={bookedTickets.length}
+                onNavigateTab={setActiveTab}
+                onNavigateLocalLife={(sec) => {
+                  setLocalLifeSection(sec);
+                  setActiveTab('local_life');
+                }}
+                onOpenQuickDestination={handleOpenQuickGlobalDest}
+                onLoadDemoData={handleLoadDemoData}
+                demoLoaded={demoLoaded}
+              />
+            )}
+
             {activeTab === 'intake' && (
               <div className="space-y-6">
                 <EmergencyHelplineStrip />
@@ -684,10 +1064,73 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'local_life' && (
+              <LocalLifeHubView
+                section={localLifeSection}
+                districtId={localLifeDistrictId}
+                bookedCount={bookedTickets.length}
+                studyPlan={studyPlan}
+                admissionApplications={admissionApplications}
+                jobApplications={jobApplications}
+                weekendItinerary={weekendItinerary}
+                eventPlan={eventPlan}
+                foodOrders={foodOrders}
+                expenses={expenses}
+                budgetGoalInr={budgetGoalInr}
+                onSectionChange={setLocalLifeSection}
+                onDistrictChange={setLocalLifeDistrictId}
+                onBookFeederPass={handleBookFeederPass}
+                onOpenBookedTickets={() => {
+                  setActiveTab('travel');
+                  setMyTicketsOpen(true);
+                }}
+                onOpenSpotGallery={setActiveSpotGallery}
+                onStudyPlanChange={setStudyPlan}
+                onSubmitAdmission={handleSubmitAdmission}
+                onSubmitJobApplication={handleSubmitJobApplication}
+                onWeekendItineraryChange={setWeekendItinerary}
+                onEventPlanChange={setEventPlan}
+                onPlaceFoodOrder={handlePlaceFoodOrder}
+                onAdvanceFoodOrderStage={handleAdvanceFoodOrderStage}
+                onAddExpense={handleAddExpense}
+                onDeleteExpense={handleDeleteExpense}
+                onBudgetGoalChange={setBudgetGoalInr}
+              />
+            )}
+
             {activeTab === 'policy' && <RoutingPolicyView />}
           </main>
         )}
       </div>
+
+      {/* Local Feeder Pass UPI Modal (shared 7012692128@fam gateway + Auto-Verify) */}
+      <UpiPaymentModal
+        open={feederPaymentOpen}
+        draft={feederPaymentDraft}
+        actualFareInr={feederPaymentFare}
+        onClose={() => setFeederPaymentOpen(false)}
+        onTicketIssued={handleIssueTicketWithAutoExpense}
+        onOpenMyTickets={() => {
+          setFeederPaymentOpen(false);
+          setActiveTab('travel');
+          setMyTicketsOpen(true);
+        }}
+      />
+
+      {/* Global Real-World Wikimedia / Wikipedia Picture Library Drawer */}
+      <SpotPictureLibraryDrawer
+        spot={activeSpotGallery}
+        onClose={() => setActiveSpotGallery(null)}
+        onFlyTo3DMap={() => {
+          setActiveSpotGallery(null);
+          setActiveTab('travel');
+        }}
+        onBookLocalTicket={() => {
+          setActiveSpotGallery(null);
+          setLocalLifeSection('transport');
+          setActiveTab('local_life');
+        }}
+      />
 
       {/* Floating Context-Aware AI Customer Assistance Chatbot (Global) */}
       <AssistantChatbotWidget

@@ -195,26 +195,32 @@ function VehicleShell3D({ layout }: { layout: CabinLayoutSpec }) {
   const halfL = layout.cabinLength / 2;
 
   if (layout.channel === 'flight') {
+    const liveryAccent = layout.liveryAccentHex || '#4F5BD5';
     return (
       <group>
         {/* Sleek airplane cabin floor */}
         <mesh position={[0, 0.04, 0]} receiveShadow>
           <boxGeometry args={[layout.cabinWidth, 0.12, layout.cabinLength]} />
-          <meshStandardMaterial color="#f1f5f9" roughness={0.65} />
+          <meshStandardMaterial color="#f5f4f0" roughness={0.65} />
         </mesh>
-        {/* Center ocean-blue aisle carpet */}
+        {/* Airline-livery colored center aisle carpet */}
         <mesh position={[0, 0.106, 0.2]}>
           <boxGeometry args={[0.68, 0.015, layout.cabinLength - 0.8]} />
-          <meshStandardMaterial color="#0284c7" roughness={0.7} />
+          <meshStandardMaterial color={liveryAccent} roughness={0.7} />
         </mesh>
-        {/* Left & Right fuselage walls with bright sky-blue window strips */}
+        {/* Left & Right fuselage walls with airline livery accent trim + sky-blue window strips */}
         {[-1, 1].map((side) => (
           <group key={side} position={[side * (halfW - 0.07), 0.44, 0]}>
             <mesh>
               <boxGeometry args={[0.14, 0.72, layout.cabinLength]} />
               <meshStandardMaterial color="#e2e8f0" roughness={0.5} />
             </mesh>
-            {/* Glowing sky-blue cabin windows */}
+            {/* Airline Livery Exterior/Interior Accent Stripe */}
+            <mesh position={[0, -0.24, 0]}>
+              <boxGeometry args={[0.16, 0.14, layout.cabinLength]} />
+              <meshStandardMaterial color={liveryAccent} roughness={0.45} />
+            </mesh>
+            {/* Glowing cabin windows */}
             {Array.from({ length: 9 }, (_, i) => (
               <mesh key={i} position={[side * -0.075, 0.08, -3.5 + i * 0.9]}>
                 <boxGeometry args={[0.02, 0.24, 0.36]} />
@@ -231,12 +237,12 @@ function VehicleShell3D({ layout }: { layout: CabinLayoutSpec }) {
         <group position={[0, 0.22, -halfL - 0.55]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <coneGeometry args={[halfW * 0.65, 1.5, 16]} />
-            <meshStandardMaterial color="#bae6fd" roughness={0.35} metalness={0.15} />
+            <meshStandardMaterial color="#e2e8f0" roughness={0.35} metalness={0.15} />
           </mesh>
           {/* Cockpit windshield visor */}
           <mesh position={[0, 0.28, 0.1]}>
             <boxGeometry args={[1.65, 0.26, 0.45]} />
-            <meshStandardMaterial color="#0369a1" roughness={0.2} metalness={0.4} />
+            <meshStandardMaterial color={liveryAccent} roughness={0.2} metalness={0.4} />
           </mesh>
         </group>
       </group>

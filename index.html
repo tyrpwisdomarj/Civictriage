@@ -4,25 +4,36 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CivicTriage LSG — Municipal Civic Issue Triage Console</title>
-    <meta name="description" content="Municipal civic issue triage console for local self-government bodies with multimodal visual verification, spam guardrails, department routing, and K-SMART ticket drafting." />
+    <meta name="description" content="Municipal civic issue triage console for local self-government bodies with multimodal visual verification, spam guardrails, department routing, Pan-India 3D maps, and Local Life OS." />
     <meta property="og:title" content="CivicTriage LSG — Municipal Civic Issue Triage Console" />
-    <meta property="og:description" content="Municipal civic issue triage console for local self-government bodies with multimodal visual verification, spam guardrails, department routing, and K-SMART ticket drafting." />
+    <meta property="og:description" content="Municipal civic issue triage console for local self-government bodies with multimodal visual verification, spam guardrails, department routing, Pan-India 3D maps, and Local Life OS." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#0d9488" />
+    <meta name="theme-color" content="#EAE8E4" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="CivicTriage" />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Malayalam:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Malayalam:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('civictriage_theme_v1');
+          if (saved === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#F8FAFC] text-slate-900 antialiased selection:bg-[#0F5257]/15 selection:text-[#0F5257]">
+  <body class="antialiased selection:bg-[#4F5BD5]/20 selection:text-[#4F5BD5]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

@@ -1,10 +1,12 @@
 import {
-  ClipboardList,
-  Compass,
-  FilePlus2,
   BookOpen,
+  ClipboardList,
+  Globe2,
+  FilePlus2,
+  Home,
   Shield,
   Sparkles,
+  Store,
   X,
 } from 'lucide-react';
 import {
@@ -13,7 +15,14 @@ import {
   type QueueMetrics,
 } from '../shared/triageSchema';
 
-export type WorkspaceTab = 'intake' | 'queue' | 'police' | 'travel' | 'policy';
+export type WorkspaceTab =
+  | 'home'
+  | 'intake'
+  | 'queue'
+  | 'police'
+  | 'travel'
+  | 'local_life'
+  | 'policy';
 
 interface SidebarNavProps {
   activeTab: WorkspaceTab;
@@ -21,6 +30,7 @@ interface SidebarNavProps {
   onSelectDepartmentFilter: (department: MunicipalDepartment) => void;
   metrics: QueueMetrics;
   activePoliceCount?: number;
+  bookedTicketsCount?: number;
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }
@@ -39,7 +49,7 @@ const DEPARTMENT_DOT_COLORS: Record<MunicipalDepartment, string> = {
   'Electrical & Streetlights (KSEB)': 'bg-rose-500',
   'Waste & Sanitation': 'bg-emerald-500',
   'Water Supply & Drainage (KWA)': 'bg-sky-500',
-  'Public Safety & Encroachment': 'bg-indigo-500',
+  'Public Safety & Encroachment': 'bg-[#4F5BD5]',
   'Invalid / Other': 'bg-slate-400',
 };
 
@@ -49,52 +59,61 @@ export function SidebarNav({
   onSelectDepartmentFilter,
   metrics,
   activePoliceCount = 0,
+  bookedTicketsCount = 0,
   mobileOpen,
   onCloseMobile,
 }: SidebarNavProps) {
   const navItems: Array<{
     id: WorkspaceTab;
     label: string;
-    icon: typeof FilePlus2;
+    icon: typeof Home;
     count?: number;
-    activeGradient: string;
+    section: 'portal' | 'workspace';
   }> = [
+    {
+      id: 'home',
+      label: 'Welcome Portal',
+      icon: Home,
+      section: 'portal',
+    },
     {
       id: 'intake',
       label: 'Citizen Report',
       icon: FilePlus2,
-      activeGradient:
-        'bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 text-white shadow-md shadow-emerald-500/20',
+      section: 'workspace',
     },
     {
       id: 'queue',
       label: 'Officer Dashboard',
       icon: ClipboardList,
       count: metrics.total,
-      activeGradient:
-        'bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 text-white shadow-md shadow-sky-500/20',
+      section: 'workspace',
     },
     {
       id: 'police',
       label: 'Police & Safety',
       icon: Shield,
       count: activePoliceCount > 0 ? activePoliceCount : undefined,
-      activeGradient:
-        'bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-600 text-white shadow-md shadow-indigo-500/20',
+      section: 'workspace',
     },
     {
       id: 'travel',
-      label: 'Travel & 3D Explorer',
-      icon: Compass,
-      activeGradient:
-        'bg-gradient-to-r from-emerald-500 via-sky-500 to-amber-500 text-white shadow-md shadow-sky-500/20',
+      label: 'Global 3D Travel',
+      icon: Globe2,
+      count: bookedTicketsCount > 0 ? bookedTicketsCount : undefined,
+      section: 'workspace',
+    },
+    {
+      id: 'local_life',
+      label: 'Local Life Hub',
+      icon: Store,
+      section: 'workspace',
     },
     {
       id: 'policy',
       label: 'Routing Policy',
       icon: BookOpen,
-      activeGradient:
-        'bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-md shadow-amber-500/20',
+      section: 'workspace',
     },
   ];
 
@@ -109,28 +128,28 @@ export function SidebarNav({
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white/95 backdrop-blur-md border-r border-slate-200/80 shadow-sm">
-      <div className="h-14 px-4 flex items-center justify-between border-b border-slate-200/80 bg-gradient-to-r from-emerald-50/80 via-sky-50/70 to-amber-50/60 shrink-0">
+    <div className="flex flex-col h-full bg-white/55 dark:bg-slate-950/65 backdrop-blur-2xl backdrop-saturate-[180%] border-r border-white/80 dark:border-white/10 shadow-[0_20px_50px_rgba(17,19,21,0.06)]">
+      <div className="h-16 px-4 flex items-center justify-between border-b border-black/5 dark:border-white/10 shrink-0">
         <a
           href="#top"
           onClick={(e) => {
             e.preventDefault();
-            handleNavClick('intake');
+            handleNavClick('home');
           }}
           className="flex items-center gap-2.5 whitespace-nowrap shrink-0 group"
         >
-          <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-sky-500 text-white flex items-center justify-center shadow-sm shadow-emerald-500/25">
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <span className="w-9 h-9 rounded-2xl bg-[#111315] dark:bg-white text-white dark:text-slate-950 flex items-center justify-center shadow-md shadow-black/15 transition-colors">
+            <Sparkles className="w-4 h-4 text-[#7B83EB] dark:text-[#4F5BD5]" aria-hidden="true" />
           </span>
           <span className="flex flex-col leading-tight">
             <span
-              className="font-bold text-[15px] tracking-tight bg-gradient-to-r from-emerald-700 via-teal-700 to-sky-700 bg-clip-text text-transparent"
+              className="font-extrabold text-[15px] tracking-tight text-[#111315] dark:text-white"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               CivicTriage LSG
             </span>
-            <span className="text-[10px] font-medium text-slate-500">
-              Kerala Smart Mobility &amp; Civic
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+              Spatial Civic · Travel · Life
             </span>
           </span>
         </a>
@@ -139,14 +158,14 @@ export function SidebarNav({
             type="button"
             onClick={onCloseMobile}
             aria-label="Close navigation menu"
-            className="lg:hidden p-1.5 text-slate-500 hover:text-slate-900 rounded-lg focus-visible:outline-2"
+            className="lg:hidden p-1.5 text-slate-500 dark:text-slate-300 hover:text-[#111315] dark:hover:text-white rounded-xl focus-visible:outline-2"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
       </div>
 
-      <nav aria-label="Primary workspace navigation" className="px-3 py-4 space-y-1.5">
+      <nav aria-label="Primary workspace navigation" className="px-3 py-4 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -156,22 +175,29 @@ export function SidebarNav({
               type="button"
               onClick={() => handleNavClick(item.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-150 whitespace-nowrap cursor-pointer ${
+              className={`relative w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-150 whitespace-nowrap cursor-pointer ${
                 isActive
-                  ? item.activeGradient
-                  : 'text-slate-700 hover:bg-sky-50/80 hover:text-slate-900'
+                  ? 'bg-[#111315] dark:bg-white text-white dark:text-slate-950 shadow-md shadow-black/15'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-white/10 hover:text-[#111315] dark:hover:text-white'
               }`}
             >
               <span className="flex items-center gap-2.5">
-                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <Icon
+                  className={`w-4 h-4 shrink-0 ${
+                    isActive
+                      ? 'text-[#A5B4FC] dark:text-[#4F5BD5]'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                  aria-hidden="true"
+                />
                 <span>{item.label}</span>
               </span>
               {typeof item.count === 'number' && (
                 <span
-                  className={`font-mono text-xs tabular-nums px-2 py-0.5 rounded-full ${
+                  className={`font-mono text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full ${
                     isActive
-                      ? 'bg-white/25 text-white'
-                      : 'bg-sky-100/80 text-sky-800'
+                      ? 'bg-[#4F5BD5] text-white'
+                      : 'bg-[#4F5BD5]/12 text-[#4F5BD5] dark:bg-[#7B83EB]/20 dark:text-[#A5B4FC]'
                   }`}
                 >
                   {item.count}
@@ -182,8 +208,8 @@ export function SidebarNav({
         })}
       </nav>
 
-      <div className="px-5 pt-4 pb-2 border-t border-slate-200/80 mt-1">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+      <div className="px-5 pt-4 pb-2 border-t border-black/5 dark:border-white/10 mt-1">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           Municipal Departments
         </p>
       </div>
@@ -196,7 +222,7 @@ export function SidebarNav({
               key={dept}
               type="button"
               onClick={() => handleDeptClick(dept)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-emerald-50/70 rounded-lg transition-colors duration-150 text-left cursor-pointer"
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-[#111315] dark:hover:text-white hover:bg-white/75 dark:hover:bg-white/10 rounded-xl transition-colors duration-150 text-left cursor-pointer"
             >
               <span className="flex items-center gap-2 truncate">
                 <span
@@ -205,7 +231,7 @@ export function SidebarNav({
                 />
                 <span className="truncate">{DEPARTMENT_SHORT_LABELS[dept]}</span>
               </span>
-              <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 tabular-nums shrink-0">
+              <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-lg bg-[#EFECE8] dark:bg-slate-800 text-slate-700 dark:text-slate-300 tabular-nums shrink-0">
                 {count}
               </span>
             </button>
@@ -213,10 +239,13 @@ export function SidebarNav({
         })}
       </div>
 
-      <div className="mx-3 mb-3 p-3.5 rounded-xl bg-gradient-to-br from-emerald-50 via-sky-50 to-amber-50/70 border border-emerald-200/70 text-xs text-slate-600 space-y-1">
-        <p className="font-bold text-emerald-800">K-SMART Triage Standard</p>
+      <div className="mx-3 mb-3 p-3.5 rounded-[22px] bg-[#EFECE8]/85 dark:bg-slate-900/80 border border-white/80 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+        <p className="font-bold text-[#111315] dark:text-white flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
+          Kerala &amp; Pan-India Smart Portal
+        </p>
         <p className="leading-relaxed text-[11px]">
-          Multimodal visual cross-check &amp; 3D regional mobility for Kerala Local Self-Governments.
+          K-SMART triage, THUNA Police Desk, 3D Earth &amp; India Relief, and Local Life OS.
         </p>
       </div>
     </div>
@@ -231,11 +260,11 @@ export function SidebarNav({
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-slate-900/35 backdrop-blur-xs"
+            className="fixed inset-0 bg-[#111315]/35 backdrop-blur-xs"
             onClick={onCloseMobile}
             aria-hidden="true"
           />
-          <div className="relative w-[276px] max-w-[85vw] h-full z-10 shadow-xl">
+          <div className="relative w-[276px] max-w-[85vw] h-full z-10 shadow-2xl">
             {sidebarContent}
           </div>
         </div>

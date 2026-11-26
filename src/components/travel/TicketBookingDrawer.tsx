@@ -37,6 +37,11 @@ export interface BookingSeedContext {
   operatorOrLine: string;
   baseFareInr: number;
   isFullJourney?: boolean;
+  airlineCode?: string;
+  airlineName?: string;
+  airlineAccentHex?: string;
+  aircraftModel?: string;
+  isWideBody?: boolean;
 }
 
 interface TicketBookingDrawerProps {
@@ -79,8 +84,21 @@ export function TicketBookingDrawer({
         railClass,
         flightClass,
         busTier,
+        airlineName: context?.airlineName,
+        airlineAccentHex: context?.airlineAccentHex,
+        aircraftModel: context?.aircraftModel,
+        isWideBody: context?.isWideBody,
       }),
-    [channel, railClass, flightClass, busTier]
+    [
+      channel,
+      railClass,
+      flightClass,
+      busTier,
+      context?.airlineName,
+      context?.airlineAccentHex,
+      context?.aircraftModel,
+      context?.isWideBody,
+    ]
   );
 
   // Auto-preselect one available seat whenever cabin layout changes
@@ -178,6 +196,11 @@ export function TicketBookingDrawer({
         passengerAge: Math.round(ageNum),
         passengerCount: effectivePassengerCount,
         baseFareInr: context.baseFareInr,
+        airlineCode: context.airlineCode,
+        airlineName: context.airlineName,
+        airlineAccentHex: context.airlineAccentHex,
+        aircraftModel: context.aircraftModel,
+        isWideBody: context.isWideBody,
       },
       computedFareInr
     );
@@ -214,8 +237,18 @@ export function TicketBookingDrawer({
               {context.isFullJourney ? 'Full Journey 3D Booking Desk' : '3D Cabin & Seat Reservation'}
             </p>
             <div className="flex flex-wrap items-center gap-2 mt-0.5">
+              {context.airlineCode && channel === 'flight' && (
+                <span
+                  className="px-2 py-0.5 rounded-lg text-[11px] font-mono font-extrabold text-white shadow-xs"
+                  style={{ backgroundColor: context.airlineAccentHex || '#111315' }}
+                >
+                  {context.airlineCode}
+                </span>
+              )}
               <h2 className="text-base font-bold text-slate-900">
-                Flight, IRCTC &amp; KSRTC 3D Seat Picker
+                {context.airlineName && channel === 'flight'
+                  ? `${context.airlineName} 3D Cabin Seat Picker`
+                  : 'Flight, IRCTC & KSRTC 3D Seat Picker'}
               </h2>
               <span className="text-xs font-semibold text-emerald-700 inline-flex items-center gap-1">
                 {context.from}
